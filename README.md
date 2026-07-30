@@ -19,8 +19,17 @@ Its TableGen file defines the entire dialect surface:
 
 - `!list.list<T>`: a parameterized list type.
 - `list.empty`: creates an empty list.
-- `list.push_back`: appends one value to a list.
+- `list.range`: creates a list holding a half-open range.
+- `list.from_elements`: creates a list from its elements.
+- `list.get_elements`: unpacks a list into its elements.
+- `list.push_back` / `list.push_front`: appends / prepends one value to a list.
+- `list.peek_front`: returns the first element of a list.
+- `list.pop_front`: returns a list without its first element.
 - `list.length`: returns a list length as `i32`.
+- `list.is_empty`: returns whether a list is empty.
+- `list.reverse`: reverses a list.
+- `list.map` / `list.yield`: applies a region to every element of a list.
+- `list.print`: prints the elements of a list.
 
 ## Setup
 
