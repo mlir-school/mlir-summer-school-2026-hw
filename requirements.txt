@@ -1,0 +1,4 @@
+-f https://llvm.github.io/eudsl
+mlir-wheel==20260708+478bbbeb0
+mlir-python-bindings==20260708+478bbbeb0
+lit
