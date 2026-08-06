@@ -26,5 +26,6 @@ add_mlir_library(ListDialect
   MLIRDialect
   MLIRInferTypeOpInterface
   MLIRIR
+  MLIRSideEffectInterfaces
   MLIRSupport
 )

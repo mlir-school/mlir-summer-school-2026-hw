@@ -94,6 +94,8 @@ def List_FromElementsOp : List_Op<"from_elements",
 
   let assemblyFormat =
       "$elements attr-dict `:` functional-type($elements, $result)";
+
+  let hasCanonicalizeMethod = 1;
 }
 
 // NoMemoryEffect rather than Pure: the op is undefined if the result count
@@ -208,6 +210,8 @@ def List_MapOp : List_Op<"map",
   // region and the traits above have been verified and may therefore assume
   // that the body block is terminated by a `list.yield`.
   let hasRegionVerifier = 1;
+
+  let hasCanonicalizer = 1;
 
   let builders = [
     OpBuilder<(ins "::mlir::Value":$input, "::mlir::IntegerType":$resultElementType)>

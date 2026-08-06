@@ -46,21 +46,20 @@ def ListSimplify : Pass<"list-simplify"> {
 
     - Exercise 2: A non-empty `list.from_elements` is replaced by a
       `list.from_elements` containing all but its last element, followed by a
-      `list.push_back` of that last element. Repeated application produces a
-      `list.empty` followed by one `list.push_back` per element.
-    - Exercise 3: Two consecutive `list.map` operations are merged into a
-      single one that
-      applies both computations to every element, provided the producer map is
-      free of side effects: `list.map(list.map(%x))` becomes `list.map(%x)`.
-      An unused producer is left for DCE.
+      `list.push_back` of that last element. Repeated application produces an
+      empty `list.from_elements` followed by one `list.push_back` per element;
+      the canonicalizer of `list.from_elements` turns the leftover operation
+      into a `list.empty`.
     - Exercise 4: A `list.map` becomes an `scf.while` loop that carries the
       elements that still have to be mapped and the mapped elements collected
       so far. Every iteration takes the first element that is left, applies the
       body of the `list.map` to it and appends the mapped element to the back of
       the result list.
 
-    The map merge is given a higher benefit than the map lowering, so that
-    consecutive maps are merged into one before the result is lowered to a loop.
+    Both patterns lower an operation to more primitive ones, which is why they
+    live in a pass rather than among the canonicalization patterns of the
+    operations they rewrite. Merging consecutive `list.map` operations
+    (Exercise 3) is a canonicalization of `list.map` instead.
   }];
 
   let dependentDialects = [

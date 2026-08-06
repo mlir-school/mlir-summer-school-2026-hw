@@ -5,29 +5,14 @@
 
 // CHECK-LABEL: @unroll_from_elements(
 // CHECK-SAME:      %[[A:.*]]: i32, %[[B:.*]]: i32, %[[C:.*]]: i32
-// CHECK:         %[[EMPTY:.*]] = list.empty : !list.list<i32>
+// CHECK:         %[[EMPTY:.*]] = list.from_elements {{.*}}-> !list.list<i32>
 // CHECK-NEXT:    %[[ONE:.*]] = list.push_back %[[EMPTY]], %[[A]] : !list.list<i32>
 // CHECK-NEXT:    %[[TWO:.*]] = list.push_back %[[ONE]], %[[B]] : !list.list<i32>
 // CHECK-NEXT:    %[[THREE:.*]] = list.push_back %[[TWO]], %[[C]] : !list.list<i32>
 // CHECK-NEXT:    return %[[THREE]] : !list.list<i32>
-// CHECK-NOT:     list.from_elements
 func.func @unroll_from_elements(%a: i32, %b: i32, %c: i32) -> !list.list<i32> {
   %li = list.from_elements %a, %b, %c : (i32, i32, i32) -> !list.list<i32>
   return %li : !list.list<i32>
-}
-
-// -----
-
-// A `list.from_elements` without any element becomes a `list.empty`, which is
-// what terminates the unrolling.
-
-// CHECK-LABEL: @from_no_elements(
-// CHECK:         %[[EMPTY:.*]] = list.empty : !list.list<i64>
-// CHECK-NEXT:    return %[[EMPTY]] : !list.list<i64>
-// CHECK-NOT:     list.from_elements
-func.func @from_no_elements() -> !list.list<i64> {
-  %li = list.from_elements : () -> !list.list<i64>
-  return %li : !list.list<i64>
 }
 
 // -----

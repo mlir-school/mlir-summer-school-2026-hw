@@ -94,36 +94,3 @@ func.func @two_maps(%first: !list.list<i32>, %second: !list.list<i32>)
   }
   return %doubled, %squared : !list.list<i32>, !list.list<i32>
 }
-
-// -----
-
-// MergeConsecutiveMaps has a higher benefit than LowerMapToWhileLoop, so a
-// chain of maps is fused before any of them becomes a loop. The result is a
-// single while that applies both computations, not two nested or sequential
-// loops.
-
-// CHECK-LABEL: @merge_before_lower(
-// CHECK-SAME:      %[[LI:[^:]*]]: !list.list<i32>
-// CHECK:         %[[LOOP:.*]]:2 = scf.while (%{{.*}} = %[[LI]],
-// CHECK:         } do {
-// CHECK-NEXT:    ^bb0(%[[ARG:.*]]: !list.list<i32>, %[[ACC:.*]]: !list.list<i64>):
-// CHECK-NEXT:      %[[ELEM:.*]] = list.peek_front %[[ARG]] : !list.list<i32> -> i32
-// CHECK-NEXT:      %[[REST:.*]] = list.pop_front %[[ARG]] : !list.list<i32>
-// CHECK-NEXT:      %[[DOUBLED:.*]] = arith.addi %[[ELEM]], %[[ELEM]] : i32
-// CHECK-NEXT:      %[[EXTENDED:.*]] = arith.extsi %[[DOUBLED]] : i32 to i64
-// CHECK-NEXT:      %[[LONGER:.*]] = list.push_back %[[ACC]], %[[EXTENDED]] : !list.list<i64>
-// CHECK-NEXT:      scf.yield %[[REST]], %[[LONGER]] : !list.list<i32>, !list.list<i64>
-// CHECK-NEXT:    }
-// CHECK-NEXT:    return %[[LOOP]]#1 : !list.list<i64>
-// CHECK-NOT:     scf.while
-func.func @merge_before_lower(%li: !list.list<i32>) -> !list.list<i64> {
-  %doubled = list.map %li with (%a : i32) -> i32 {
-    %0 = arith.addi %a, %a : i32
-    list.yield %0 : i32
-  }
-  %extended = list.map %doubled with (%b : i32) -> i64 {
-    %1 = arith.extsi %b : i32 to i64
-    list.yield %1 : i64
-  }
-  return %extended : !list.list<i64>
-}
