@@ -11,6 +11,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 # Add tutorial dialects.
 add_subdirectory(list)
+add_subdirectory(analysis)
 
 set(LLVM_LINK_COMPONENTS
   Support
@@ -39,4 +40,7 @@ target_link_libraries(tutorial-opt
   MLIRRegisterAllExtensions
   ListDialect
   ListTransforms
+  ListSizeRangeAnalysis
+  ListIntegerRangeAnalysis
+  ListNonEmptyPathAnalysis
 )

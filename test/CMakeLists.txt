@@ -33,3 +33,9 @@ add_custom_target(check-tutorial-list
   DEPENDS ${TUTORIAL_TEST_DEPENDS}
   COMMENT "Running list tutorial tests"
 )
+
+add_custom_target(check-tutorial-analysis
+  COMMAND ${LLVM_EXTERNAL_LIT} ${CMAKE_CURRENT_BINARY_DIR} --filter=analysis -v
+  DEPENDS ${TUTORIAL_TEST_DEPENDS}
+  COMMENT "Running analysis tutorial tests"
+)

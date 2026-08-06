@@ -22,6 +22,57 @@ using namespace mlir::list;
 OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValueAttr(); }
 
 //===----------------------------------------------------------------------===//
+// Integer element range propagation
+//===----------------------------------------------------------------------===//
+
+void FromElementsOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
+                                       SetIntRangeFn setResultRanges) {
+  // Get the bitwidth of the list element type.
+  unsigned elementWidth = ConstantIntRanges::getStorageBitwidth(
+      getResult().getType().getElementType());
+
+  // If the list is empty, the result range is set at an arbitrary constant (0).
+  if (argRanges.empty()) {
+    setResultRanges(getResult(),
+                    ConstantIntRanges::constant(APInt::getZero(elementWidth)));
+    return;
+  }
+
+  // Otherwise, compute the union of all argument ranges.
+  ConstantIntRanges resultRange = argRanges.front();
+  for (const ConstantIntRanges &range : argRanges.drop_front())
+    resultRange = resultRange.rangeUnion(range);
+  setResultRanges(getResult(), resultRange);
+}
+
+void PeekFrontOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
+                                    SetIntRangeFn setResultRanges) {
+  setResultRanges(getItem(), argRanges[0]);
+}
+
+void PopFrontOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
+                                   SetIntRangeFn setResultRanges) {
+  setResultRanges(getResult(), argRanges[0]);
+}
+
+void PushFrontOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
+                                    SetIntRangeFn setResultRanges) {
+  setResultRanges(getResult(), argRanges[0].rangeUnion(argRanges[1]));
+}
+
+//===----------------------------------------------------------------------===//
+// LengthOp
+//===----------------------------------------------------------------------===//
+
+void LengthOp::inferResultRanges(ArrayRef<ConstantIntRanges>,
+                                 SetIntRangeFn setResultRanges) {
+  unsigned width = ConstantIntRanges::getStorageBitwidth(getType());
+  setResultRanges(getResult(),
+                  ConstantIntRanges::fromSigned(
+                      APInt::getZero(width), APInt::getSignedMaxValue(width)));
+}
+
+//===----------------------------------------------------------------------===//
 // MapOp
 //===----------------------------------------------------------------------===//
 

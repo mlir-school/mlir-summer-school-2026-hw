@@ -13,6 +13,7 @@ include "list/IR/ListDialect.td"
 include "list/IR/ListTypes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/InferIntRangeInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -35,6 +36,33 @@ class List_ItemTypesMatchElementType<string listArg, string itemsArg>
                            "::llvm::SmallVector<::mlir::Type>($" # itemsArg
                            # ".size(), ::llvm::cast<::mlir::list::ListType>"
                            "($_self).getElementType())">;
+
+def List_ConcatOp : List_Op<"concat",
+    [Pure, AllTypesMatch<["lhs", "rhs", "result"]>]> {
+  let summary = "concatenation of two lists";
+  let description = [{
+    Returns a list containing the elements of `$lhs`, followed by the elements
+    of `$rhs`.
+
+    Example:
+
+    ```mlir
+    %combined = list.concat %lhs, %rhs : !list.list<i32>
+    ```
+  }];
+
+  let arguments = (ins List_ListType:$lhs, List_ListType:$rhs);
+  let results = (outs List_ListType:$result);
+
+  let assemblyFormat =
+      "$lhs `,` $rhs attr-dict `:` qualified(type($result))";
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$lhs, "::mlir::Value":$rhs), [{
+      build($_builder, $_state, lhs.getType(), lhs, rhs);
+    }]>
+  ];
+}
 
 def List_ConstantOp : List_Op<"constant",
     [ConstantLike, Pure, AllTypesMatch<["value", "result"]>]> {
@@ -76,7 +104,9 @@ def List_EmptyOp : List_Op<"empty", [Pure]> {
 }
 
 def List_FromElementsOp : List_Op<"from_elements",
-    [Pure, List_ItemTypesMatchElementType<"result", "elements">]> {
+    [Pure, List_ItemTypesMatchElementType<"result", "elements">,
+     DeclareOpInterfaceMethods<InferIntRangeInterface,
+                               ["inferResultRanges"]>]> {
   let summary = "list holding the given elements";
   let description = [{
     Creates a list of the operands, in the order in which they are given. The
@@ -148,7 +178,10 @@ def List_IsEmptyOp : List_Op<"is_empty", [Pure]> {
   ];
 }
 
-def List_LengthOp : List_Op<"length", [Pure]> {
+def List_LengthOp : List_Op<"length",
+    [Pure,
+     DeclareOpInterfaceMethods<InferIntRangeInterface,
+                               ["inferResultRanges"]>]> {
   let summary = "number of elements of a list";
   let description = [{
     Returns the number of elements of the operand list.
@@ -222,7 +255,9 @@ def List_MapOp : List_Op<"map",
 // NoMemoryEffect rather than Pure: undefined on an empty list, so not always
 // speculatable.
 def List_PeekFrontOp : List_Op<"peek_front",
-    [NoMemoryEffect, List_ItemTypeMatchesElementType<"input", "item">]> {
+    [NoMemoryEffect, List_ItemTypeMatchesElementType<"input", "item">,
+     DeclareOpInterfaceMethods<InferIntRangeInterface,
+                               ["inferResultRanges"]>]> {
   let summary = "first element of a list";
   let description = [{
     Returns the first element of the operand list. The behavior is undefined if
@@ -252,7 +287,9 @@ def List_PeekFrontOp : List_Op<"peek_front",
 // NoMemoryEffect rather than Pure: undefined on an empty list, so not always
 // speculatable.
 def List_PopFrontOp : List_Op<"pop_front",
-    [NoMemoryEffect, AllTypesMatch<["input", "result"]>]> {
+    [NoMemoryEffect, AllTypesMatch<["input", "result"]>,
+     DeclareOpInterfaceMethods<InferIntRangeInterface,
+                               ["inferResultRanges"]>]> {
   let summary = "list without its first element";
   let description = [{
     Returns the operand list without its first element. The behavior is
@@ -322,7 +359,9 @@ def List_PushBackOp : List_Op<"push_back",
 
 def List_PushFrontOp : List_Op<"push_front",
     [Pure, AllTypesMatch<["input", "result"]>,
-     List_ItemTypeMatchesElementType<"input", "item">]> {
+     List_ItemTypeMatchesElementType<"input", "item">,
+     DeclareOpInterfaceMethods<InferIntRangeInterface,
+                               ["inferResultRanges"]>]> {
   let summary = "list with an element prepended";
   let description = [{
     Returns the operand list with `$item` prepended to it.

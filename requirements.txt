@@ -1,4 +1,6 @@
--f https://llvm.github.io/eudsl
-mlir-wheel==20260708+478bbbeb0
-mlir-python-bindings==20260708+478bbbeb0
-lit
+-f https://mlir-school.github.io/mlir-wheels/
+mlir-wheel==20260807+56a654b9a
+mlir-python-bindings==20260807+56a654b9a
+cmake>=3.24
+ninja
+lit==18.1.8
