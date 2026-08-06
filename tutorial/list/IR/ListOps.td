@@ -36,6 +36,28 @@ class List_ItemTypesMatchElementType<string listArg, string itemsArg>
                            # ".size(), ::llvm::cast<::mlir::list::ListType>"
                            "($_self).getElementType())">;
 
+def List_ConstantOp : List_Op<"constant",
+    [ConstantLike, Pure, AllTypesMatch<["value", "result"]>]> {
+  let summary = "list of constants";
+  let description = [{
+    Creates the list described by the `$value` attribute. Every element of the
+    attribute is truncated to the element type of the result list.
+
+    Example:
+
+    ```mlir
+    %li = list.constant #list.list<[1, 2, 3]> : !list.list<i32>
+    ```
+  }];
+
+  let arguments = (ins List_ListAttr:$value);
+  let results = (outs List_ListType:$result);
+
+  let assemblyFormat = "qualified($value) attr-dict";
+
+  let hasFolder = 1;
+}
+
 def List_EmptyOp : List_Op<"empty", [Pure]> {
   let summary = "list without any element";
   let description = [{

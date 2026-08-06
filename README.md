@@ -9,7 +9,7 @@ The tutorial dialect lives in `tutorial/list/IR`, split across the files that an
 | File              | Contents                                                                           |
 |-------------------|------------------------------------------------------------------------------------|
 | `ListDialect.td`  | the `list` dialect itself                                                          |
-| `ListTypes.td`    | `!list.list<T>`, a list of integers of a fixed element type                        |
+| `ListTypes.td`    | `!list.list<T>`, a list of integers of a fixed element type, and `#list.list`      |
 | `ListOps.td`      | one `def` per operation                                                            |
 | `ListDialect.cpp` | dialect registration, `initialize()`                                               |
 | `ListOps.cpp`     | the hand-written parts of operations: builders, verifiers, custom assembly formats |
@@ -18,7 +18,9 @@ The tutorial dialect lives in `tutorial/list/IR`, split across the files that an
 Its TableGen file defines the entire dialect surface:
 
 - `!list.list<T>`: a parameterized list type.
+- `#list.list<[...]>`: a constant list, typed by a `!list.list<T>`.
 - `list.empty`: creates an empty list.
+- `list.constant`: creates the list held by a `#list.list` attribute.
 - `list.range`: creates a list holding a half-open range.
 - `list.from_elements`: creates a list from its elements.
 - `list.get_elements`: unpacks a list into its elements.

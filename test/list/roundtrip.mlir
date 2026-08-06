@@ -11,6 +11,17 @@ func.func @empty() -> !list.list<i32> {
 
 // -----
 
+func.func @constant() -> !list.list<i32> {
+  %0 = list.constant #list.list<[1, 2, 3]> : !list.list<i32>
+  return %0 : !list.list<i32>
+}
+
+// CHECK-LABEL: func.func @constant
+// CHECK: %[[LIST:.*]] = list.constant #list.list<[1, 2, 3]> : !list.list<i32>
+// CHECK: return %[[LIST]] : !list.list<i32>
+
+// -----
+
 func.func @push_back(%item: i32) -> !list.list<i32> {
   %empty = list.empty : !list.list<i32>
   %list = list.push_back %empty, %item : !list.list<i32>

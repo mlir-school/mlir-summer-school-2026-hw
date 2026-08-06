@@ -71,6 +71,15 @@ func.func @empty() -> !list.list<i32> {
   return %li : !list.list<i32>
 }
 
+// CHECK-LABEL: @constant
+func.func @constant() -> (!list.list<i32>, !list.list<i64>) {
+  // CHECK: %[[LI:.*]] = list.constant #list.list<[1, -2, 3]> : !list.list<i32>
+  %li = list.constant #list.list<[1, -2, 3]> : !list.list<i32>
+  // CHECK: %[[EMPTY:.*]] = list.constant #list.list<[]> : !list.list<i64>
+  %empty = list.constant #list.list<[]> : !list.list<i64>
+  return %li, %empty : !list.list<i32>, !list.list<i64>
+}
+
 // CHECK-LABEL: @no_elements
 func.func @no_elements() -> !list.list<i64> {
   // CHECK: %[[LI:.*]] = list.from_elements : () -> !list.list<i64>

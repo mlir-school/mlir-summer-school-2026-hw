@@ -22,7 +22,17 @@ def List_Dialect : Dialect {
     transform them.
   }];
 
+  let useDefaultAttributePrinterParser = 1;
   let useDefaultTypePrinterParser = 1;
+
+  // Provides 'materializeConstant', which turns the attribute returned by a
+  // folder back into an operation: a 'list.list' attribute becomes a
+  // 'list.constant', an integer becomes an 'arith.constant'.
+  let hasConstantMaterializer = 1;
+
+  // 'materializeConstant' builds operations of the arith dialect, which
+  // therefore has to be loaded whenever this dialect is.
+  let dependentDialects = ["::mlir::arith::ArithDialect"];
 }
 
 #endif // MLIR_DIALECT_LIST_IR_LISTDIALECT
