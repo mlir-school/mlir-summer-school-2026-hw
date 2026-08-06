@@ -3,7 +3,7 @@
 // CHECK-LABEL: @map(
 // CHECK-SAME:      %[[INPUT:.*]]: !list.list<i32>
 //       CHECK:   %[[TRUE:.*]] = arith.constant true
-//       CHECK:   %[[EMPTY:.*]] = list.empty : !list.list<i64>
+//       CHECK:   %[[EMPTY:.*]] = list.constant #list.list<[]> : !list.list<i64>
 //       CHECK:   %[[LOOP:.*]]:2 = scf.while (%[[ARG:.*]] = %[[INPUT]], %[[ACC:.*]] = %[[EMPTY]]) : (!list.list<i32>, !list.list<i64>) -> (!list.list<i32>, !list.list<i64>) {
 //       CHECK:     %[[IS_EMPTY:.*]] = list.is_empty %[[ARG]] : !list.list<i32> -> i1
 //       CHECK:     %[[COND:.*]] = arith.xori %[[IS_EMPTY]], %[[TRUE]] : i1

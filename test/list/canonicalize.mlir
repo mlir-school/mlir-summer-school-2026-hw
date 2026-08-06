@@ -2,10 +2,11 @@
 
 // A `list.from_elements` without any element becomes a `list.empty`: both build
 // the same list and `list.empty` is the simpler operation, whatever is done
-// with the result afterwards.
+// with the result afterwards. The folder of `list.empty` then turns that into
+// the constant empty list; see fold.mlir.
 
 // CHECK-LABEL: @from_no_elements(
-// CHECK:         %[[EMPTY:.*]] = list.empty : !list.list<i64>
+// CHECK:         %[[EMPTY:.*]] = list.constant #list.list<[]> : !list.list<i64>
 // CHECK-NEXT:    return %[[EMPTY]] : !list.list<i64>
 // CHECK-NOT:     list.from_elements
 func.func @from_no_elements() -> !list.list<i64> {

@@ -73,6 +73,8 @@ def List_EmptyOp : List_Op<"empty", [Pure]> {
   let results = (outs List_ListType:$result);
 
   let assemblyFormat = "attr-dict `:` qualified(type($result))";
+
+  let hasFolder = 1;
 }
 
 def List_FromElementsOp : List_Op<"from_elements",
@@ -123,6 +125,8 @@ def List_GetElementsOp : List_Op<"get_elements",
 
   let assemblyFormat =
       "$input attr-dict `:` functional-type($input, $elements)";
+
+  let hasFolder = 1;
 }
 
 def List_IsEmptyOp : List_Op<"is_empty", [Pure]> {
@@ -148,6 +152,8 @@ def List_IsEmptyOp : List_Op<"is_empty", [Pure]> {
       build($_builder, $_state, $_builder.getI1Type(), input);
     }]>
   ];
+
+  let hasFolder = 1;
 }
 
 def List_LengthOp : List_Op<"length", [Pure]> {
@@ -173,6 +179,8 @@ def List_LengthOp : List_Op<"length", [Pure]> {
       build($_builder, $_state, $_builder.getI32Type(), input);
     }]>
   ];
+
+  let hasFolder = 1;
 }
 
 def List_MapOp : List_Op<"map",
@@ -251,6 +259,8 @@ def List_PeekFrontOp : List_Op<"peek_front",
             ::llvm::cast<ListType>(input.getType()).getElementType(), input);
     }]>
   ];
+
+  let hasFolder = 1;
 }
 
 // NoMemoryEffect rather than Pure: undefined on an empty list, so not always
@@ -279,6 +289,8 @@ def List_PopFrontOp : List_Op<"pop_front",
       build($_builder, $_state, input.getType(), input);
     }]>
   ];
+
+  let hasFolder = 1;
 }
 
 def List_PrintOp : List_Op<"print", [MemoryEffects<[MemWrite]>]> {
@@ -322,6 +334,8 @@ def List_PushBackOp : List_Op<"push_back",
       build($_builder, $_state, input.getType(), input, item);
     }]>
   ];
+
+  let hasFolder = 1;
 }
 
 def List_PushFrontOp : List_Op<"push_front",
@@ -348,6 +362,8 @@ def List_PushFrontOp : List_Op<"push_front",
       build($_builder, $_state, input.getType(), input, item);
     }]>
   ];
+
+  let hasFolder = 1;
 }
 
 def List_RangeOp : List_Op<"range", [Pure]> {
@@ -369,6 +385,8 @@ def List_RangeOp : List_Op<"range", [Pure]> {
 
   let assemblyFormat =
       "$lower `to` $upper attr-dict `:` qualified(type($result))";
+
+  let hasFolder = 1;
 }
 
 def List_ReverseOp : List_Op<"reverse",
@@ -394,6 +412,8 @@ def List_ReverseOp : List_Op<"reverse",
       build($_builder, $_state, input.getType(), input);
     }]>
   ];
+
+  let hasFolder = 1;
 }
 
 def List_YieldOp : List_Op<"yield", [Pure, Terminator, HasParent<"MapOp">]> {

@@ -24,6 +24,14 @@ using namespace mlir::list;
 OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValueAttr(); }
 
 //===----------------------------------------------------------------------===//
+// EmptyOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult EmptyOp::fold(FoldAdaptor adaptor) {
+  return ListAttr::get(getType(), {});
+}
+
+//===----------------------------------------------------------------------===//
 // FromElementsOp
 //===----------------------------------------------------------------------===//
 
@@ -45,6 +53,74 @@ LogicalResult FromElementsOp::canonicalize(FromElementsOp op,
 
   rewriter.replaceOpWithNewOp<EmptyOp>(op, op.getResult().getType());
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// GetElementsOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult GetElementsOp::fold(FoldAdaptor adaptor,
+                                  SmallVectorImpl<OpFoldResult> &results) {
+  // Reporting success while leaving `results` empty tells the caller that the
+  // operation was folded in place, which is not what an operation that unpacks
+  // nothing does.
+  if (getNumResults() == 0)
+    return failure();
+
+  // list.get_elements(list.from_elements(%a, %b)) -> %a, %b
+  if (auto fromElements = getInput().getDefiningOp<FromElementsOp>()) {
+    // The behavior is undefined if the operation asks for a different number of
+    // elements than the list holds. Fold what is well defined and leave the
+    // rest alone.
+    if (fromElements.getElements().size() != getNumResults())
+      return failure();
+    llvm::append_range(results, fromElements.getElements());
+    return success();
+  }
+
+  // list.get_elements(list.constant <[1, 2]>) -> 1, 2
+  ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput());
+  if (!constant || constant.getElements().size() != getNumResults())
+    return failure();
+  for (auto [element, result] :
+       llvm::zip_equal(constant.getElements(), getResults()))
+    results.push_back(IntegerAttr::get(result.getType(), element));
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// IsEmptyOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult IsEmptyOp::fold(FoldAdaptor adaptor) {
+  // list.is_empty(list.empty) -> true
+  if (getInput().getDefiningOp<EmptyOp>())
+    return BoolAttr::get(getContext(), true);
+
+  // A list that something has just been added to holds at least that element.
+  if (getInput().getDefiningOp<PushBackOp>() ||
+      getInput().getDefiningOp<PushFrontOp>())
+    return BoolAttr::get(getContext(), false);
+
+  if (ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput()))
+    return BoolAttr::get(getContext(), constant.getElements().empty());
+
+  return {};
+}
+
+//===----------------------------------------------------------------------===//
+// LengthOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult LengthOp::fold(FoldAdaptor adaptor) {
+  // list.length(list.empty) -> 0
+  if (getInput().getDefiningOp<EmptyOp>())
+    return IntegerAttr::get(getType(), 0);
+
+  if (ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput()))
+    return IntegerAttr::get(getType(), constant.getElements().size());
+
+  return {};
 }
 
 //===----------------------------------------------------------------------===//
@@ -209,6 +285,108 @@ struct MergeConsecutiveMaps : OpRewritePattern<MapOp> {
 void MapOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *context) {
   results.add<MergeConsecutiveMaps>(context);
+}
+
+//===----------------------------------------------------------------------===//
+// PeekFrontOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult PeekFrontOp::fold(FoldAdaptor adaptor) {
+  // list.peek_front(list.push_front(%li, %item)) -> %item
+  if (auto pushFront = getInput().getDefiningOp<PushFrontOp>())
+    return pushFront.getItem();
+
+  ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput());
+  if (!constant || constant.getElements().empty())
+    return {};
+  return IntegerAttr::get(getType(), constant.getElements().front());
+}
+
+//===----------------------------------------------------------------------===//
+// PopFrontOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult PopFrontOp::fold(FoldAdaptor adaptor) {
+  // list.pop_front(list.push_front(%li, %item)) -> %li
+  if (auto pushFront = getInput().getDefiningOp<PushFrontOp>())
+    return pushFront.getInput();
+
+  ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput());
+  if (!constant || constant.getElements().empty())
+    return {};
+  return ListAttr::get(getType(), constant.getElements().drop_front());
+}
+
+//===----------------------------------------------------------------------===//
+// PushBackOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult PushBackOp::fold(FoldAdaptor adaptor) {
+  ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput());
+  auto item = dyn_cast_if_present<IntegerAttr>(adaptor.getItem());
+  if (!constant || !item)
+    return {};
+
+  SmallVector<int64_t> elements(constant.getElements());
+  elements.push_back(item.getValue().getSExtValue());
+  return ListAttr::get(getType(), elements);
+}
+
+//===----------------------------------------------------------------------===//
+// PushFrontOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult PushFrontOp::fold(FoldAdaptor adaptor) {
+  ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput());
+  auto item = dyn_cast_if_present<IntegerAttr>(adaptor.getItem());
+  if (!constant || !item)
+    return {};
+
+  SmallVector<int64_t> elements{item.getValue().getSExtValue()};
+  llvm::append_range(elements, constant.getElements());
+  return ListAttr::get(getType(), elements);
+}
+
+//===----------------------------------------------------------------------===//
+// RangeOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult RangeOp::fold(FoldAdaptor adaptor) {
+  auto lower = dyn_cast_if_present<IntegerAttr>(adaptor.getLower());
+  auto upper = dyn_cast_if_present<IntegerAttr>(adaptor.getUpper());
+  if (!lower || !upper)
+    return {};
+
+  int64_t lowerValue = lower.getValue().getSExtValue();
+  int64_t upperValue = upper.getValue().getSExtValue();
+
+  // Folding writes down one element per integer of the range, so a range that
+  // is cheap to compute can be expensive to spell out. Leave the long ones to
+  // whatever lowers 'list.range' to a loop.
+  static constexpr int64_t maxFoldedLength = 32;
+  if (upperValue - lowerValue > maxFoldedLength)
+    return {};
+
+  SmallVector<int64_t> elements;
+  for (int64_t value = lowerValue; value < upperValue; ++value)
+    elements.push_back(value);
+  return ListAttr::get(getType(), elements);
+}
+
+//===----------------------------------------------------------------------===//
+// ReverseOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult ReverseOp::fold(FoldAdaptor adaptor) {
+  // list.reverse(list.reverse(%li)) -> %li
+  if (auto producer = getInput().getDefiningOp<ReverseOp>())
+    return producer.getInput();
+
+  ListAttr constant = dyn_cast_if_present<ListAttr>(adaptor.getInput());
+  if (!constant)
+    return {};
+  SmallVector<int64_t> reversed(llvm::reverse(constant.getElements()));
+  return ListAttr::get(getType(), reversed);
 }
 
 //===----------------------------------------------------------------------===//
