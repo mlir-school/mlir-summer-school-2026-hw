@@ -65,6 +65,19 @@ Run all tutorial tests:
 cmake --build build --target check-tutorial
 ```
 
+## Exercises
+
+[`tutorial/linalg_and_transform/`](tutorial/linalg_and_transform) holds the
+exercises for the Linalg and Transform dialect session (day 4, session 4).
+
+```bash
+cmake --build build --target check-linalg-and-transform
+```
+
+They are red until solved, so `check-tutorial` is red too; use
+`check-tutorial-list` for the dialect showcase on its own. The reference answers
+are the same files filled in, on the `solutions/day-4-session-4` branch.
+
 ## Try It
 
 Roundtrip a list dialect example through `tutorial-opt`:

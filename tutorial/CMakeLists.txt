@@ -5,6 +5,9 @@
 # Add tutorial dialects.
 add_subdirectory(list)
 
+# Add the session exercises.
+add_subdirectory(linalg_and_transform)
+
 set(LLVM_LINK_COMPONENTS
   Support
 )
@@ -31,6 +34,7 @@ target_link_libraries(tutorial-opt
   MLIRRegisterAllPasses
   MLIRRegisterAllExtensions
   ListDialect
+  TutorialTransformOps
 )
 
 # Include tutorial headers.

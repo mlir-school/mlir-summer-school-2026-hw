@@ -10,6 +10,7 @@
 #include "mlir/InitAllPasses.h"
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
+#include "ex3-transform-op/TutorialTransformOps.h"
 #include "list/ListDialect.h"
 
 int main(int argc, char **argv) {
@@ -26,6 +27,9 @@ int main(int argc, char **argv) {
 
   // Register tutorial dialects.
   registry.insert<mlir::tutorial::list::ListDialect>();
+
+  // Register tutorial transform dialect extensions (exercise 3).
+  mlir::tutorial::registerTutorialTransformExtension(registry);
 
   return mlir::asMainReturnCode(
       mlir::MlirOptMain(argc, argv, "Tutorial optimizer driver\n", registry));

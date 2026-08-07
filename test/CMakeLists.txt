@@ -23,3 +23,9 @@ add_custom_target(check-tutorial-list
   DEPENDS ${TUTORIAL_TEST_DEPENDS}
   COMMENT "Running list tutorial tests"
 )
+
+add_custom_target(check-linalg-and-transform
+  COMMAND lit ${CMAKE_CURRENT_BINARY_DIR} --filter=linalg_and_transform -v
+  DEPENDS ${TUTORIAL_TEST_DEPENDS}
+  COMMENT "Running linalg and transform exercises"
+)
