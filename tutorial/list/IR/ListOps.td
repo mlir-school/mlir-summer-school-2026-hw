@@ -14,6 +14,7 @@ include "list/IR/ListTypes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class List_Op<string mnemonic, list<Trait> traits = []>
     : Op<List_Dialect, mnemonic, traits>;
@@ -35,7 +36,7 @@ class List_ItemTypesMatchElementType<string listArg, string itemsArg>
                            # ".size(), ::llvm::cast<::mlir::list::ListType>"
                            "($_self).getElementType())">;
 
-def List_EmptyOp : List_Op<"empty"> {
+def List_EmptyOp : List_Op<"empty", [Pure]> {
   let summary = "list without any element";
   let description = [{
     Creates a list that holds no element.
@@ -53,7 +54,7 @@ def List_EmptyOp : List_Op<"empty"> {
 }
 
 def List_FromElementsOp : List_Op<"from_elements",
-    [List_ItemTypesMatchElementType<"result", "elements">]> {
+    [Pure, List_ItemTypesMatchElementType<"result", "elements">]> {
   let summary = "list holding the given elements";
   let description = [{
     Creates a list of the operands, in the order in which they are given. The
@@ -73,8 +74,11 @@ def List_FromElementsOp : List_Op<"from_elements",
       "$elements attr-dict `:` functional-type($elements, $result)";
 }
 
+// NoMemoryEffect rather than Pure: the op is undefined if the result count
+// does not match the list length, so it must not be treated as always
+// speculatable (e.g. by loop-invariant code motion).
 def List_GetElementsOp : List_Op<"get_elements",
-    [List_ItemTypesMatchElementType<"input", "elements">]> {
+    [NoMemoryEffect, List_ItemTypesMatchElementType<"input", "elements">]> {
   let summary = "elements of a list";
   let description = [{
     Returns the elements of the operand list, in the order in which they are
@@ -97,7 +101,7 @@ def List_GetElementsOp : List_Op<"get_elements",
       "$input attr-dict `:` functional-type($input, $elements)";
 }
 
-def List_IsEmptyOp : List_Op<"is_empty"> {
+def List_IsEmptyOp : List_Op<"is_empty", [Pure]> {
   let summary = "whether a list holds no element";
   let description = [{
     Returns whether the operand list holds no element.
@@ -122,7 +126,7 @@ def List_IsEmptyOp : List_Op<"is_empty"> {
   ];
 }
 
-def List_LengthOp : List_Op<"length"> {
+def List_LengthOp : List_Op<"length", [Pure]> {
   let summary = "number of elements of a list";
   let description = [{
     Returns the number of elements of the operand list.
@@ -148,12 +152,14 @@ def List_LengthOp : List_Op<"length"> {
 }
 
 def List_MapOp : List_Op<"map",
-    [SingleBlockImplicitTerminator<"::mlir::list::YieldOp">]> {
+    [RecursiveMemoryEffects,
+     SingleBlockImplicitTerminator<"::mlir::list::YieldOp">]> {
   let summary = "apply a computation to every element of a list";
   let description = [{
     Produces a list of the same length as the operand list, where every element
     is the result of evaluating the body region with the corresponding element
-    of the operand list bound to the region argument. The body region is
+    of the operand list bound to the region argument. The body is evaluated
+    exactly once per element, in order from front to back. The body region is
     terminated by a `list.yield` operation whose operand type determines the
     element type of the result list.
 
@@ -191,8 +197,10 @@ def List_MapOp : List_Op<"map",
   }];
 }
 
+// NoMemoryEffect rather than Pure: undefined on an empty list, so not always
+// speculatable.
 def List_PeekFrontOp : List_Op<"peek_front",
-    [List_ItemTypeMatchesElementType<"input", "item">]> {
+    [NoMemoryEffect, List_ItemTypeMatchesElementType<"input", "item">]> {
   let summary = "first element of a list";
   let description = [{
     Returns the first element of the operand list. The behavior is undefined if
@@ -219,7 +227,10 @@ def List_PeekFrontOp : List_Op<"peek_front",
   ];
 }
 
-def List_PopFrontOp : List_Op<"pop_front", [AllTypesMatch<["input", "result"]>]> {
+// NoMemoryEffect rather than Pure: undefined on an empty list, so not always
+// speculatable.
+def List_PopFrontOp : List_Op<"pop_front",
+    [NoMemoryEffect, AllTypesMatch<["input", "result"]>]> {
   let summary = "list without its first element";
   let description = [{
     Returns the operand list without its first element. The behavior is
@@ -244,7 +255,7 @@ def List_PopFrontOp : List_Op<"pop_front", [AllTypesMatch<["input", "result"]>]>
   ];
 }
 
-def List_PrintOp : List_Op<"print"> {
+def List_PrintOp : List_Op<"print", [MemoryEffects<[MemWrite]>]> {
   let summary = "print the elements of a list";
   let description = [{
     Prints the elements of the operand list.
@@ -262,7 +273,7 @@ def List_PrintOp : List_Op<"print"> {
 }
 
 def List_PushBackOp : List_Op<"push_back",
-    [AllTypesMatch<["input", "result"]>,
+    [Pure, AllTypesMatch<["input", "result"]>,
      List_ItemTypeMatchesElementType<"input", "item">]> {
   let summary = "list with an element appended";
   let description = [{
@@ -288,7 +299,7 @@ def List_PushBackOp : List_Op<"push_back",
 }
 
 def List_PushFrontOp : List_Op<"push_front",
-    [AllTypesMatch<["input", "result"]>,
+    [Pure, AllTypesMatch<["input", "result"]>,
      List_ItemTypeMatchesElementType<"input", "item">]> {
   let summary = "list with an element prepended";
   let description = [{
@@ -313,7 +324,7 @@ def List_PushFrontOp : List_Op<"push_front",
   ];
 }
 
-def List_RangeOp : List_Op<"range"> {
+def List_RangeOp : List_Op<"range", [Pure]> {
   let summary = "list of consecutive integers";
   let description = [{
     Creates the list of consecutive integers from `$lower`, inclusive, to
@@ -334,7 +345,8 @@ def List_RangeOp : List_Op<"range"> {
       "$lower `to` $upper attr-dict `:` qualified(type($result))";
 }
 
-def List_ReverseOp : List_Op<"reverse", [AllTypesMatch<["input", "result"]>]> {
+def List_ReverseOp : List_Op<"reverse",
+    [Pure, AllTypesMatch<["input", "result"]>]> {
   let summary = "list with its elements in reverse order";
   let description = [{
     Returns the elements of the operand list in reverse order.
@@ -358,7 +370,7 @@ def List_ReverseOp : List_Op<"reverse", [AllTypesMatch<["input", "result"]>]> {
   ];
 }
 
-def List_YieldOp : List_Op<"yield", [Terminator, HasParent<"MapOp">]> {
+def List_YieldOp : List_Op<"yield", [Pure, Terminator, HasParent<"MapOp">]> {
   let summary = "terminate and yield from a list.map body";
   let description = [{
     Terminates the body region of a `list.map` operation and yields the value

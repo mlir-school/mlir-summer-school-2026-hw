@@ -38,4 +38,5 @@ target_link_libraries(tutorial-opt
   MLIRRegisterAllPasses
   MLIRRegisterAllExtensions
   ListDialect
+  ListTransforms
 )
