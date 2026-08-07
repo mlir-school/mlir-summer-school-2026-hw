@@ -109,9 +109,6 @@ struct MergeConsecutiveMaps : OpRewritePattern<MapOp> {
     auto producer = mapOp.getInput().getDefiningOp<MapOp>();
     if (!producer)
       return rewriter.notifyMatchFailure(mapOp, "operand is not a list.map");
-    if (!isMemoryEffectFree(producer))
-      return rewriter.notifyMatchFailure(producer,
-                                         "producer has side effects");
 
     // The merged operation maps over the producer's operand and yields the
     // element type that `mapOp` yields.
@@ -247,6 +244,74 @@ struct LowerMapToWhileLoop : OpRewritePattern<MapOp> {
     // The loop ends with an empty list of remaining elements, which is of no
     // interest; the mapped elements are the result of the `list.map`.
     rewriter.replaceOp(mapOp, whileOp.getResult(1));
+    return success();
+  }
+};
+
+/// Variant of `LowerMapToWhileLoop` that uses a counted `scf.for` instead of
+/// `scf.while`. The trip count comes from `list.length`:
+///
+/// ```mlir
+/// %len = list.length %input : !list.list<i32> -> i32
+/// %c0 = arith.constant 0 : i32
+/// %c1 = arith.constant 1 : i32
+/// %empty = list.empty : !list.list<i64>
+/// %loop:2 = scf.for %i = %c0 to %len step %c1
+///     iter_args(%remaining = %input, %collected = %empty)
+///     -> (!list.list<i32>, !list.list<i64>) {
+///   %element = list.peek_front %remaining : !list.list<i32> -> i32
+///   %rest = list.pop_front %remaining : !list.list<i32>
+///   %mapped = ...
+///   %longer = list.push_back %collected, %mapped : !list.list<i64>
+///   scf.yield %rest, %longer : !list.list<i32>, !list.list<i64>
+/// }
+/// // %loop#1 replaces %result
+/// ```
+///
+/// Not registered with `list-simplify`; kept as an alternative lowering.
+struct LowerMapToForLoop : OpRewritePattern<MapOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(MapOp mapOp,
+                                PatternRewriter &rewriter) const override {
+    Location loc = mapOp.getLoc();
+    Type collectedType = mapOp.getResult().getType();
+
+    Value len = LengthOp::create(rewriter, loc, mapOp.getInput());
+    Value zero = arith::ConstantOp::create(rewriter, loc,
+                                           rewriter.getI32IntegerAttr(0));
+    Value one = arith::ConstantOp::create(rewriter, loc,
+                                          rewriter.getI32IntegerAttr(1));
+    Value empty = EmptyOp::create(rewriter, loc, collectedType);
+
+    // An empty body builder leaves the region without a terminator so the
+    // body can be filled below. The IV is unused; remaining and collected are
+    // the loop-carried values.
+    auto forOp = scf::ForOp::create(
+        rewriter, loc, zero, len, one, ValueRange{mapOp.getInput(), empty},
+        [](OpBuilder &, Location, Value, ValueRange) {});
+
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      Block *body = forOp.getBody();
+      rewriter.setInsertionPointToEnd(body);
+      Value remaining = forOp.getRegionIterArg(0);
+      Value collected = forOp.getRegionIterArg(1);
+      Value element = PeekFrontOp::create(rewriter, loc, remaining);
+      Value rest = PopFrontOp::create(rewriter, loc, remaining);
+
+      auto yieldOp = cast<YieldOp>(mapOp.getBodyBlock().getTerminator());
+      rewriter.inlineBlockBefore(&mapOp.getBodyBlock(), body, body->end(),
+                                 element);
+      Value mapped = yieldOp.getYielded();
+      rewriter.eraseOp(yieldOp);
+
+      rewriter.setInsertionPointToEnd(body);
+      Value longer = PushBackOp::create(rewriter, loc, collected, mapped);
+      scf::YieldOp::create(rewriter, loc, ValueRange{rest, longer});
+    }
+
+    rewriter.replaceOp(mapOp, forOp.getResult(1));
     return success();
   }
 };
