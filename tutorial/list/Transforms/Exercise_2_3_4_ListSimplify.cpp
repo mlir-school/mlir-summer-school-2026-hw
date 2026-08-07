@@ -66,7 +66,17 @@ struct PeelFromElements : OpRewritePattern<FromElementsOp> {
 
   LogicalResult matchAndRewrite(FromElementsOp op,
                                 PatternRewriter &rewriter) const override {
-    return rewriter.notifyMatchFailure(op, "exercise 2 not implemented");
+    if (op.getElements().empty())
+      return rewriter.notifyMatchFailure(op, "list has no elements");
+
+    Location loc = op.getLoc();
+    Type resultType = op.getResult().getType();
+    ValueRange elements = op.getElements();
+    auto shorter = FromElementsOp::create(rewriter, loc, resultType,
+                                          elements.drop_back());
+    rewriter.replaceOpWithNewOp<PushBackOp>(op, shorter.getResult(),
+                                            elements.back());
+    return success();
   }
 };
 
@@ -96,7 +106,39 @@ struct MergeConsecutiveMaps : OpRewritePattern<MapOp> {
 
   LogicalResult matchAndRewrite(MapOp mapOp,
                                 PatternRewriter &rewriter) const override {
-    return rewriter.notifyMatchFailure(mapOp, "exercise 3 not implemented");
+    auto producer = mapOp.getInput().getDefiningOp<MapOp>();
+    if (!producer)
+      return rewriter.notifyMatchFailure(mapOp, "operand is not a list.map");
+    if (!isMemoryEffectFree(producer))
+      return rewriter.notifyMatchFailure(producer,
+                                         "producer has side effects");
+
+    // The merged operation maps over the producer's operand and yields the
+    // element type that `mapOp` yields.
+    auto elementType =
+        cast<ListType>(mapOp.getResult().getType()).getElementType();
+    auto mergedOp = MapOp::create(rewriter, mapOp.getLoc(), producer.getInput(),
+                                  elementType);
+    Block &mergedBody = mergedOp.getBodyBlock();
+
+    // Clone the producer's body so it can remain if it still has other users.
+    // If it becomes unused, DCE removes it.
+    Block &producerBody = producer.getBodyBlock();
+    auto producerYield = cast<YieldOp>(producerBody.getTerminator());
+    IRMapping mapping;
+    mapping.map(producerBody.getArgument(0), mergedBody.getArgument(0));
+    rewriter.setInsertionPointToEnd(&mergedBody);
+    for (Operation &op : producerBody.without_terminator())
+      rewriter.clone(op, mapping);
+    Value producerElement = mapping.lookupOrDefault(producerYield.getYielded());
+
+    // Append the body of `mapOp`, which consumes the element that the
+    // producer's body computes.
+    rewriter.inlineBlockBefore(&mapOp.getBodyBlock(), &mergedBody,
+                               mergedBody.end(), producerElement);
+
+    rewriter.replaceOp(mapOp, mergedOp.getResult());
+    return success();
   }
 };
 
@@ -146,7 +188,66 @@ struct LowerMapToWhileLoop : OpRewritePattern<MapOp> {
 
   LogicalResult matchAndRewrite(MapOp mapOp,
                                 PatternRewriter &rewriter) const override {
-    return rewriter.notifyMatchFailure(mapOp, "exercise 4 not implemented");
+    Location loc = mapOp.getLoc();
+    Type remainingType = mapOp.getInput().getType();
+    Type collectedType = mapOp.getResult().getType();
+
+    // The list of mapped elements starts out empty.
+    Value empty = EmptyOp::create(rewriter, loc, collectedType);
+
+    // Both loop-carried lists are passed on unchanged by the condition of the
+    // loop, so the operation results and the arguments of both regions all have
+    // the same types.
+    SmallVector<Type> loopTypes = {remainingType, collectedType};
+    SmallVector<Value> inits = {mapOp.getInput(), empty};
+    auto whileOp = scf::WhileOp::create(rewriter, loc, loopTypes, inits,
+                                        /*beforeBuilder=*/nullptr,
+                                        /*afterBuilder=*/nullptr);
+
+    // The "before" region decides whether another element is left to map.
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToEnd(whileOp.getBeforeBody());
+      Value remaining = whileOp.getBeforeArguments()[0];
+      Value isEmpty = IsEmptyOp::create(rewriter, loc, remaining);
+      Value trueVal = arith::ConstantOp::create(rewriter, loc,
+                                                rewriter.getBoolAttr(true));
+      Value notEmpty = arith::XOrIOp::create(rewriter, loc, isEmpty, trueVal);
+      scf::ConditionOp::create(rewriter, loc, notEmpty,
+                               whileOp.getBeforeArguments());
+    }
+
+    // The "after" region maps a single element.
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      Block *afterBody = whileOp.getAfterBody();
+      rewriter.setInsertionPointToEnd(afterBody);
+      Value remaining = whileOp.getAfterArguments()[0];
+      Value collected = whileOp.getAfterArguments()[1];
+      Value element = PeekFrontOp::create(rewriter, loc, remaining);
+      Value rest = PopFrontOp::create(rewriter, loc, remaining);
+
+      // Move the body of the `list.map` into the loop and let it compute on the
+      // element that was just taken off the list. The yield operation is looked
+      // up before inlining, but its operand is read afterwards: inlining
+      // replaces the block argument of the body, which the yield may use.
+      // Terminators are never trivially dead, so the yield must be erased by
+      // hand (and leaving it would leave the block with two terminators).
+      auto yieldOp = cast<YieldOp>(mapOp.getBodyBlock().getTerminator());
+      rewriter.inlineBlockBefore(&mapOp.getBodyBlock(), afterBody,
+                                 afterBody->end(), element);
+      Value mapped = yieldOp.getYielded();
+      rewriter.eraseOp(yieldOp);
+
+      rewriter.setInsertionPointToEnd(afterBody);
+      Value longer = PushBackOp::create(rewriter, loc, collected, mapped);
+      scf::YieldOp::create(rewriter, loc, ValueRange{rest, longer});
+    }
+
+    // The loop ends with an empty list of remaining elements, which is of no
+    // interest; the mapped elements are the result of the `list.map`.
+    rewriter.replaceOp(mapOp, whileOp.getResult(1));
+    return success();
   }
 };
 

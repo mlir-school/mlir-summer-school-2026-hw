@@ -28,8 +28,25 @@ struct ListLowerFromElementsPass
     : public impl::ListLowerFromElementsBase<ListLowerFromElementsPass> {
 
   void runOnOperation() override {
-    getOperation()->emitError("exercise 1 not implemented");
-    signalPassFailure();
+    // Collect all from_elements ops before walking to avoid modifying the IR
+    // while iterating over it.
+    SmallVector<FromElementsOp> ops;
+    getOperation()->walk([&](FromElementsOp op) { ops.push_back(op); });
+
+    for (FromElementsOp op : ops) {
+      OpBuilder builder(op);
+      Location loc = op.getLoc();
+      Type listType = op.getResult().getType();
+
+      // Build the list one element at a time: start with an empty list and
+      // append each element to the back in order.
+      Value result = EmptyOp::create(builder, loc, listType);
+      for (Value element : op.getElements())
+        result = PushBackOp::create(builder, loc, result, element);
+
+      op.getResult().replaceAllUsesWith(result);
+      op.erase();
+    }
   }
 };
 
