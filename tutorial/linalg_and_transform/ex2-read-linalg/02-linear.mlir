@@ -35,11 +35,18 @@ func.func @linear(%A: tensor<?x?x?xf32>, %B: tensor<?x?xf32>,
 }
 
 // CHECK-LABEL: func.func @linear
-// CHECK:         scf.parallel (???) =
-// CHECK:           scf.for ??? =
-// CHECK:             memref.load %{{.*}}[???]
-// CHECK:             memref.load %{{.*}}[???]
-// CHECK:             memref.load %{{.*}}[???]
+// CHECK:         scf.parallel (%[[B:[a-zA-Z0-9_]+]], %[[M:[a-zA-Z0-9_]+]], %[[N:[a-zA-Z0-9_]+]]) =
+// CHECK:           scf.for %[[K:[a-zA-Z0-9_]+]] =
+// CHECK:             memref.load %{{.*}}[%[[B]], %[[M]], %[[K]]]
+// CHECK:             memref.load %{{.*}}[%[[N]], %[[K]]]
+// CHECK:             memref.load %{{.*}}[%[[B]], %[[M]], %[[N]]]
 // CHECK:             arith.mulf
 // CHECK:             arith.addf
-// CHECK:             memref.store %{{.*}}, %{{.*}}[???]
+// CHECK:             memref.store %{{.*}}, %{{.*}}[%[[B]], %[[M]], %[[N]]]
+
+//   for b, m, n in parallel:
+//     for k:                                  // reduction
+//       C[b, m, n] += A[b, m, k] * B[n, k]
+//
+// Note B[n, k], not B[k, n]: the weight matrix is indexed with the reduction
+// dimension last, which is the transposed layout a fully connected layer uses.

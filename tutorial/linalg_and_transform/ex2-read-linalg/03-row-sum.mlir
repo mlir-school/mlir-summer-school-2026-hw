@@ -30,9 +30,13 @@ func.func @row_sum(%in: tensor<?x?xf32>, %out: tensor<?xf32>) -> tensor<?xf32> {
 }
 
 // CHECK-LABEL: func.func @row_sum
-// CHECK:         scf.parallel (???) =
-// CHECK:           scf.for ??? =
-// CHECK:             memref.load %{{.*}}[???]
-// CHECK:             memref.load %{{.*}}[???]
+// CHECK:         scf.parallel (%[[I:[a-zA-Z0-9_]+]]) =
+// CHECK:           scf.for %[[J:[a-zA-Z0-9_]+]] =
+// CHECK:             memref.load %{{.*}}[%[[I]], %[[J]]]
+// CHECK:             memref.load %{{.*}}[%[[I]]]
 // CHECK:             arith.addf
-// CHECK:             memref.store %{{.*}}, %{{.*}}[???]
+// CHECK:             memref.store %{{.*}}, %{{.*}}[%[[I]]]
+
+//   for i in parallel:
+//     for j:                    // reduction, because out drops j
+//       out[i] += in[i, j]

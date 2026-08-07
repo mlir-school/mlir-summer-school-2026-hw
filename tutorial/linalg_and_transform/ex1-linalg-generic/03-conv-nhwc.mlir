@@ -20,6 +20,10 @@
 // which is what the CHECK lines below compare.
 //===----------------------------------------------------------------------===//
 
+#in  = affine_map<(n, oh, ow, oc, kh, kw, ic) -> (n, oh + kh, ow + kw, ic)>
+#flt = affine_map<(n, oh, ow, oc, kh, kw, ic) -> (kh, kw, ic, oc)>
+#out = affine_map<(n, oh, ow, oc, kh, kw, ic) -> (n, oh, ow, oc)>
+
 // Reference implementation. Do not edit.
 func.func @reference(%I: tensor<1x8x8x4xf32>, %F: tensor<3x3x4x16xf32>,
                      %O: tensor<1x6x6x16xf32>) -> tensor<1x6x6x16xf32> {
@@ -33,12 +37,15 @@ func.func @reference(%I: tensor<1x8x8x4xf32>, %F: tensor<3x3x4x16xf32>,
 func.func @student(%I: tensor<1x8x8x4xf32>, %F: tensor<3x3x4x16xf32>,
                    %O: tensor<1x6x6x16xf32>) -> tensor<1x6x6x16xf32> {
   %0 = linalg.generic {
-    indexing_maps = [???],
-    iterator_types = [???]
-  } ins(??? : tensor<1x8x8x4xf32>, tensor<3x3x4x16xf32>)
-    outs(??? : tensor<1x6x6x16xf32>) {
-  ^bb0(???):
-    ???
+    indexing_maps = [#in, #flt, #out],
+    iterator_types = ["parallel", "parallel", "parallel", "parallel",
+                      "reduction", "reduction", "reduction"]
+  } ins(%I, %F : tensor<1x8x8x4xf32>, tensor<3x3x4x16xf32>)
+    outs(%O : tensor<1x6x6x16xf32>) {
+  ^bb0(%i: f32, %f: f32, %acc: f32):
+    %product = arith.mulf %i, %f : f32
+    %sum = arith.addf %acc, %product : f32
+    linalg.yield %sum : f32
   } -> tensor<1x6x6x16xf32>
   return %0 : tensor<1x6x6x16xf32>
 }

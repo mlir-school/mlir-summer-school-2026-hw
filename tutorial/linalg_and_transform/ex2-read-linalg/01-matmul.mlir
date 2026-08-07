@@ -40,9 +40,13 @@ func.func @matmul(%A: tensor<?x?xf32>, %B: tensor<?x?xf32>,
 // CHECK-LABEL: func.func @matmul
 // CHECK:         scf.parallel (%[[I:[a-zA-Z0-9_]+]], %[[J:[a-zA-Z0-9_]+]]) =
 // CHECK:           scf.for %[[K:[a-zA-Z0-9_]+]] =
-// CHECK:             memref.load %{{.*}}[???]
-// CHECK:             memref.load %{{.*}}[???]
-// CHECK:             memref.load %{{.*}}[???]
+// CHECK:             memref.load %{{.*}}[%[[I]], %[[K]]]
+// CHECK:             memref.load %{{.*}}[%[[K]], %[[J]]]
+// CHECK:             memref.load %{{.*}}[%[[I]], %[[J]]]
 // CHECK:             arith.mulf
 // CHECK:             arith.addf
-// CHECK:             memref.store %{{.*}}, %{{.*}}[???]
+// CHECK:             memref.store %{{.*}}, %{{.*}}[%[[I]], %[[J]]]
+
+//   for i, j in parallel:
+//     for k:                       // reduction
+//       C[i, j] += A[i, k] * B[k, j]

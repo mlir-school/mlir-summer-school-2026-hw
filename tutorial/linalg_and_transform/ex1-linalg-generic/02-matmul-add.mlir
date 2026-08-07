@@ -15,27 +15,35 @@
 // not have to deal with linalg.fill here.
 //===----------------------------------------------------------------------===//
 
+#A  = affine_map<(i, j, k) -> (i, k)>
+#B  = affine_map<(i, j, k) -> (k, j)>
+#C  = affine_map<(i, j, k) -> (i, j)>
+#id = affine_map<(i, j) -> (i, j)>
+
 func.func @matmul_add(%A: tensor<?x?xf32>, %B: tensor<?x?xf32>,
                       %C: tensor<?x?xf32>, %acc: tensor<?x?xf32>,
                       %out: tensor<?x?xf32>) -> tensor<?x?xf32> {
   // Step 1: %mm = A * B, accumulated into %acc.
   %mm = linalg.generic {
-    indexing_maps = [???],
-    iterator_types = [???]
-  } ins(??? : tensor<?x?xf32>, tensor<?x?xf32>)
-    outs(??? : tensor<?x?xf32>) {
-  ^bb0(???):
-    ???
+    indexing_maps = [#A, #B, #C],
+    iterator_types = ["parallel", "parallel", "reduction"]
+  } ins(%A, %B : tensor<?x?xf32>, tensor<?x?xf32>)
+    outs(%acc : tensor<?x?xf32>) {
+  ^bb0(%a: f32, %b: f32, %a_acc: f32):
+    %product = arith.mulf %a, %b : f32
+    %sum = arith.addf %a_acc, %product : f32
+    linalg.yield %sum : f32
   } -> tensor<?x?xf32>
 
   // Step 2: %d = %mm + C, written into %out.
   %d = linalg.generic {
-    indexing_maps = [???],
-    iterator_types = [???]
-  } ins(??? : tensor<?x?xf32>, tensor<?x?xf32>)
-    outs(??? : tensor<?x?xf32>) {
-  ^bb0(???):
-    ???
+    indexing_maps = [#id, #id, #id],
+    iterator_types = ["parallel", "parallel"]
+  } ins(%mm, %C : tensor<?x?xf32>, tensor<?x?xf32>)
+    outs(%out : tensor<?x?xf32>) {
+  ^bb0(%lhs: f32, %rhs: f32, %unused: f32):
+    %sum = arith.addf %lhs, %rhs : f32
+    linalg.yield %sum : f32
   } -> tensor<?x?xf32>
 
   return %d : tensor<?x?xf32>

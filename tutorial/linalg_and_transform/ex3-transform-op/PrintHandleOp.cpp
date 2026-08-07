@@ -1,13 +1,13 @@
 //===- PrintHandleOp.cpp - Exercise 3 -------------------------*- C++ -*-===//
 //
-// EXERCISE 3
+// EXERCISE 3 - reference solution
 //
-// Implement `transform.tutorial.print_handle` so that you can printf-debug a
-// transform script while it runs.
+// `transform.tutorial.print_handle` lets you printf-debug a transform script
+// while it runs.
 //
-// The operation is already defined in TutorialTransformOps.td and already
-// registered with the transform dialect. The only thing missing is the
-// behaviour, which lives in `apply` below.
+// The operation is defined in TutorialTransformOps.td and registered with the
+// transform dialect by TutorialTransformExtension.cpp. All that is left is the
+// behaviour, in `apply` below.
 //
 // Build and test with:
 //   lit build/test --filter=ex3 -v
@@ -30,36 +30,22 @@ DiagnosedSilenceableFailure transform::PrintHandleOp::apply(
     transform::TransformRewriter &rewriter,
     transform::TransformResults &results, transform::TransformState &state) {
 
-  //===--------------------------------------------------------------------===//
-  // TODO(exercise 3): replace the failure below with the implementation.
-  //
-  // 1. Ask the state which payload operations `getTarget()` is associated with.
-  //    `state.getPayloadOps(Value)` returns a lazy range, so wrap it:
-  //
-  //      SmallVector<Operation *> payload =
-  //          llvm::to_vector(state.getPayloadOps(getTarget()));
-  //
-  // 2. Emit a remark at each one. `Operation::emitRemark()` returns a stream
-  //    you can append to, and `getMessage()` gives you the string attribute:
-  //
-  //      op->emitRemark() << getMessage() << " (" << i + 1 << " of "
-  //                       << payload.size() << "): " << op->getName();
-  //
-  //    Emitting *at the payload operation* rather than dumping to stdout is
-  //    what makes the output point at a source location, and what lets the
-  //    test check it with `-verify-diagnostics`.
-  //
-  // 3. Return `DiagnosedSilenceableFailure::success()`.
-  //
-  // Note the three ways a transform op can end, they are not interchangeable:
-  //   - success()              the transformation applied
-  //   - silenceableFailure()   it did not apply, but an enclosing op may
-  //                            recover from it
-  //   - definiteFailure()      the payload is now inconsistent, abort the
-  //                            whole interpreter run
-  //===--------------------------------------------------------------------===//
+  // A handle stands for a set of payload operations, so materialize the range
+  // before reporting on it: we want the total up front.
+  SmallVector<Operation *> payload =
+      llvm::to_vector(state.getPayloadOps(getTarget()));
 
-  return emitDefiniteFailure()
-         << "transform.tutorial.print_handle is not implemented yet - see "
-            "tutorial/linalg_and_transform/ex3-transform-op/PrintHandleOp.cpp";
+  // Emitting the diagnostic *at the payload operation* is what attaches a
+  // source location to it, and what lets the test check it with
+  // -verify-diagnostics.
+  for (auto [index, op] : llvm::enumerate(payload)) {
+    op->emitRemark() << getMessage() << " (" << index + 1 << " of "
+                     << payload.size() << "): " << op->getName();
+  }
+
+  // Nothing was rewritten and nothing can go wrong, so this always succeeds.
+  // The alternatives are a silenceable failure, which an enclosing op may
+  // recover from, and a definite failure, which aborts the interpreter because
+  // the payload is left inconsistent.
+  return DiagnosedSilenceableFailure::success();
 }

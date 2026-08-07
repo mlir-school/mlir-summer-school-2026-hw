@@ -1,5 +1,5 @@
 //===----------------------------------------------------------------------===//
-// EXERCISE 4 - write the schedule
+// EXERCISE 4 - reference solution
 //
 // This file is transform IR. It is loaded separately from payload.mlir with
 // --transform-preload-library, so you can change the schedule without touching
@@ -42,22 +42,37 @@ module attributes {transform.with_named_sequence} {
       %arg0: !transform.any_op {transform.readonly}) {
 
     // 1. Match the root.
-    ???
+    %root = transform.structured.match attributes {__root__} in %arg0
+      : (!transform.any_op) -> !transform.any_op
 
-    // 2. Match the producers.
-    ???
+    // 2. Match the producers. Both linalg.fill and linalg.matmul carry
+    //    __producer__, and a handle is a set, so one match covers both.
+    %producers = transform.structured.match attributes {__producer__} in %arg0
+      : (!transform.any_op) -> !transform.any_op
 
-    // 3. Tile the root with [8, 16].
-    ???
+    // 3. Tile the root with [8, 16]. This consumes %root and hands back a new
+    //    handle to the tiled op plus one handle per generated loop.
+    %tiled, %loops:2 = transform.structured.tile_using_for %root
+        tile_sizes [8, 16]
+      : (!transform.any_op)
+        -> (!transform.any_op, !transform.any_op, !transform.any_op)
 
-    // 4. Fuse the producers into the loop nest.
-    ???
+    // 4. Fuse the producers into the loop nest. Fusion follows the slice the
+    //    consumer needs, so fill and matmul end up computing only the tile.
+    %fused, %new_containing =
+      transform.structured.fuse_into_containing_op %producers into %loops#0
+      : (!transform.any_op, !transform.any_op)
+        -> (!transform.any_op, !transform.any_op)
 
     // 5. Optional: once exercise 3 works, print the payload here.
-    // transform.tutorial.print_handle %???, "after fusion" : !transform.any_op
+    // transform.tutorial.print_handle %tiled, "after fusion" : !transform.any_op
 
-    // 6. Tile the root again with [4, 4].
-    ???
+    // 6. Tile the root again with [4, 4]. Note this uses %tiled and not %root:
+    //    %root was consumed in step 3 and is dead from there on.
+    %tiled2, %loops2:2 = transform.structured.tile_using_for %tiled
+        tile_sizes [4, 4]
+      : (!transform.any_op)
+        -> (!transform.any_op, !transform.any_op, !transform.any_op)
 
     transform.yield
   }
