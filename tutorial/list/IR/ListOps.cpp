@@ -80,17 +80,18 @@ ParseResult FoldOp::parse(OpAsmParser &parser, OperationState &result) {
   SMLoc iterArgsLoc = parser.getCurrentLocation();
 
   if (succeeded(parser.parseOptionalKeyword("iter_args"))) {
-    if (parser.parseCommaSeparatedList(
-            AsmParser::Delimiter::Paren, [&]() -> ParseResult {
-              OpAsmParser::Argument argument;
-              OpAsmParser::UnresolvedOperand operand;
-              if (parser.parseArgument(argument) || parser.parseEqual() ||
-                  parser.parseOperand(operand))
-                return failure();
-              bodyArguments.push_back(argument);
-              iterArgOperands.push_back(operand);
-              return success();
-            }) ||
+    if (parser.parseCommaSeparatedList(AsmParser::Delimiter::Paren,
+                                       [&]() -> ParseResult {
+                                         OpAsmParser::Argument argument;
+                                         OpAsmParser::UnresolvedOperand operand;
+                                         if (parser.parseArgument(argument) ||
+                                             parser.parseEqual() ||
+                                             parser.parseOperand(operand))
+                                           return failure();
+                                         bodyArguments.push_back(argument);
+                                         iterArgOperands.push_back(operand);
+                                         return success();
+                                       }) ||
         parser.parseArrow() || parser.parseLParen() ||
         parser.parseTypeList(iterArgTypes) || parser.parseRParen())
       return failure();
@@ -353,9 +354,10 @@ void MapOp::setupPromotion(
   regionsToProcess.insert({&getBody(), reachingDef});
 }
 
-Value MapOp::finalizePromotion(
-    const MemorySlot &, Value entryReachingDef, bool hasValueStores,
-    const llvm::DenseMap<Block *, Value> &, OpBuilder &) {
+Value MapOp::finalizePromotion(const MemorySlot &, Value entryReachingDef,
+                               bool hasValueStores,
+                               const llvm::DenseMap<Block *, Value> &,
+                               OpBuilder &) {
   assert(!hasValueStores && "MapOp does not support stores");
   return entryReachingDef;
 }
@@ -435,20 +437,19 @@ Value StoreOp::getStored(const MemorySlot &, OpBuilder &, Value,
   return getValue();
 }
 
-bool StoreOp::canUsesBeRemoved(const MemorySlot &slot,
-                               const llvm::SmallPtrSetImpl<OpOperand *> &
-                                   blockingUses,
-                               llvm::SmallVectorImpl<OpOperand *> &,
-                               const DataLayout &) {
+bool StoreOp::canUsesBeRemoved(
+    const MemorySlot &slot,
+    const llvm::SmallPtrSetImpl<OpOperand *> &blockingUses,
+    llvm::SmallVectorImpl<OpOperand *> &, const DataLayout &) {
   return blockingUses.contains(&getRefMutable()) &&
-         !blockingUses.contains(&getValueMutable()) &&
-         getRef() == slot.ptr &&
+         !blockingUses.contains(&getValueMutable()) && getRef() == slot.ptr &&
          getValue().getType() == slot.elemType;
 }
 
-DeletionKind StoreOp::removeBlockingUses(
-    const MemorySlot &, const llvm::SmallPtrSetImpl<OpOperand *> &, OpBuilder &,
-    Value, const DataLayout &) {
+DeletionKind
+StoreOp::removeBlockingUses(const MemorySlot &,
+                            const llvm::SmallPtrSetImpl<OpOperand *> &,
+                            OpBuilder &, Value, const DataLayout &) {
   return DeletionKind::Delete;
 }
 
@@ -495,11 +496,10 @@ Value LoadOp::getStored(const MemorySlot &, OpBuilder &, Value,
   llvm_unreachable("getStored should not be called on LoadOp");
 }
 
-bool LoadOp::canUsesBeRemoved(const MemorySlot &slot,
-                              const llvm::SmallPtrSetImpl<OpOperand *> &
-                                  blockingUses,
-                              llvm::SmallVectorImpl<OpOperand *> &,
-                              const DataLayout &) {
+bool LoadOp::canUsesBeRemoved(
+    const MemorySlot &slot,
+    const llvm::SmallPtrSetImpl<OpOperand *> &blockingUses,
+    llvm::SmallVectorImpl<OpOperand *> &, const DataLayout &) {
   return blockingUses.contains(&getRefMutable()) && getRef() == slot.ptr &&
          getValue().getType() == slot.elemType;
 }
