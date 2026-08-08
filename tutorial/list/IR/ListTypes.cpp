@@ -14,8 +14,5 @@ using namespace mlir::list;
 LogicalResult
 RefType::verify(llvm::function_ref<InFlightDiagnostic()> emitError,
                 Type elementType) {
-  if (!isa<IntegerType, ListType>(elementType))
-    return emitError() << "expected an integer or list element type, but got "
-                       << elementType;
-  return success();
+  llvm_unreachable("unimplemented");
 }

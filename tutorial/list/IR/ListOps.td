@@ -432,9 +432,9 @@ def List_AllocaOp : List_Op<"alloca", [
     ```
   }];
 
-  let results = (outs Res<List_RefType, "allocated reference", [MemAlloc]>:$ref);
+  // let results = ...;
 
-  let assemblyFormat = "attr-dict `:` qualified(type($ref))";
+  // let assemblyFormat = ...;
 }
 
 def List_StoreOp : List_Op<"store", [
@@ -451,9 +451,7 @@ def List_StoreOp : List_Op<"store", [
     ```
   }];
 
-  let arguments = (ins
-      AnyTypeOf<[AnyInteger, List_ListType]>:$value,
-      List_RefType:$ref);
+  // let arguments = ...;
 
   let hasCustomAssemblyFormat = 1;
   let hasVerifier = 1;
@@ -472,19 +470,11 @@ def List_LoadOp : List_Op<"load", [
     ```
   }];
 
-  let arguments = (ins List_RefType:$ref);
-  let results = (outs AnyTypeOf<[AnyInteger, List_ListType]>:$value);
+  // let arguments = ...;
+  // let results = ...;
 
   let hasCustomAssemblyFormat = 1;
   let hasVerifier = 1;
-
-  let builders = [
-    OpBuilder<(ins "::mlir::Value":$ref), [{
-      build($_builder, $_state,
-            ::llvm::cast<::mlir::list::RefType>(ref.getType()).getElementType(),
-            ref);
-    }]>
-  ];
 }
 
 #endif // MLIR_DIALECT_LIST_IR_LISTOPS
