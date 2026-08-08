@@ -1,9 +1,4 @@
-#===----------------------------------------------------------------------===#
-# Tutorial MLIR Tool
-#===----------------------------------------------------------------------===#
-
-# Add tutorial dialects.
-add_subdirectory(list)
+add_subdirectory(dialect)
 
 set(LLVM_LINK_COMPONENTS
   Support
@@ -30,10 +25,9 @@ target_link_libraries(tutorial-opt
   MLIRRegisterAllDialects
   MLIRRegisterAllPasses
   MLIRRegisterAllExtensions
-  ListDialect
+  TutorialDialect
 )
 
-# Include tutorial headers.
 target_include_directories(tutorial-opt PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}

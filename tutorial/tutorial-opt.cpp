@@ -10,7 +10,7 @@
 #include "mlir/InitAllPasses.h"
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
-#include "list/ListDialect.h"
+#include "dialect/TutorialDialect.h"
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   mlir::registerAllExtensions(registry);
 
   // Register tutorial dialects.
-  registry.insert<mlir::tutorial::list::ListDialect>();
+  registry.insert<mlir::tutorial::TutorialDialect>();
 
   return mlir::asMainReturnCode(
       mlir::MlirOptMain(argc, argv, "Tutorial optimizer driver\n", registry));

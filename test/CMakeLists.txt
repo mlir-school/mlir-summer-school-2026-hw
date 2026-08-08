@@ -10,16 +10,8 @@ set(TUTORIAL_TEST_DEPENDS
   FileCheck
 )
 
-# All tests - run lit on build directory
-add_lit_testsuite(check-tutorial "Running all tutorial tests"
+add_lit_testsuite(check-tutorial "Checking the tutorial setup"
   ${CMAKE_CURRENT_BINARY_DIR}
   ARGS -v
   DEPENDS ${TUTORIAL_TEST_DEPENDS}
-)
-
-# Per-tutorial test targets using --filter
-add_custom_target(check-tutorial-list
-  COMMAND lit ${CMAKE_CURRENT_BINARY_DIR} --filter=list -v
-  DEPENDS ${TUTORIAL_TEST_DEPENDS}
-  COMMENT "Running list tutorial tests"
 )

@@ -1,40 +1,49 @@
-# MLIR Wheel Tutorial
+# MLIR Summer School 2026 Homework
 
-This repository is a small showcase for building an out-of-tree MLIR dialect
-against the packaged `mlir-wheel` release instead of a local LLVM/MLIR source
-tree.
+The `main` branch is a small smoke test for the course toolchain. Building it
+and running its test verifies that the MLIR wheel, CMake, the C++ compiler,
+TableGen, lit, and FileCheck are all working together correctly.
 
-The tutorial dialect lives in `tutorial/list`. Its TableGen file defines the
-entire dialect surface:
+The actual homework is on branches named `exercises/day-X-session-Y`, with
+completed versions on the corresponding `solutions/day-X-session-Y` branches.
+For example:
 
-- `!list.list<T>`: a parameterized list type.
-- `list.empty`: creates an empty list.
-- `list.append`: appends one value to a list.
-- `list.concat`: concatenates two lists.
-- `list.length`: returns a list length as `index`.
+```bash
+git switch exercises/day-2-session-1
+git switch solutions/day-2-session-1
+```
 
-The C++ files in the same directory are the minimal wrapper needed to register
-the generated dialect, type, and operation definitions with MLIR.
+## Download
+
+Clone the repository and enter it:
+
+```bash
+git clone https://github.com/mlir-school/mlir-summer-school-2026-hw.git
+cd mlir-summer-school-2026-hw
+```
 
 ## Setup
 
-Create and activate a virtual environment:
+Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if it is
+not already available:
 
 ```bash
-python3 -m venv .env
-source .env/bin/activate
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Install the Python packages:
+Use uv to install Python 3.12, create an isolated environment, and install the
+required packages. Do not use the system Python for this project.
 
 ```bash
-pip install -r requirements.txt
+uv python install 3.12
+uv venv --python 3.12
+uv pip install -r requirements.txt
 ```
 
 Check that the MLIR wheel is available:
 
 ```bash
-python -m mlir_wheel --root-dir
+.venv/bin/python -m mlir_wheel --root-dir
 ```
 
 ## Build
@@ -43,35 +52,24 @@ Configure CMake against the MLIR wheel:
 
 ```bash
 cmake -S . -B build \
-  -DCMAKE_PREFIX_PATH=$(python -m mlir_wheel --root-dir) \
-  -DLLVM_EXTERNAL_LIT=$(which lit)
+  -DCMAKE_PREFIX_PATH=$(.venv/bin/python -m mlir_wheel --root-dir) \
+  -DLLVM_EXTERNAL_LIT=$(pwd)/.venv/bin/lit
 ```
 
-Build `tutorial-opt`:
+Build the minimal `tutorial-opt` tool:
 
 ```bash
 cmake --build build --target tutorial-opt
 ```
 
-Run the list dialect roundtrip tests:
+## Check your installation
 
-```bash
-cmake --build build --target check-tutorial-list
-```
-
-Run all tutorial tests:
+Run the lit and FileCheck smoke test:
 
 ```bash
 cmake --build build --target check-tutorial
 ```
 
-## Try It
-
-Roundtrip a list dialect example through `tutorial-opt`:
-
-```bash
-build/tutorial/tutorial-opt tutorial/list/test/roundtrip.mlir
-```
-
-The test file uses `FileCheck` to verify that the custom list type and list
-operations parse and print correctly.
+A successful run ends with `100.00% tests passed`. The test parses and prints a
+single `tutorial.constant` operation using the custom `tutorial-opt` binary and
+checks its output with FileCheck.
