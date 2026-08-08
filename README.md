@@ -70,6 +70,6 @@ Run the lit and FileCheck smoke test:
 cmake --build build --target check-tutorial
 ```
 
-A successful run ends with `100.00% tests passed`. The test parses and prints a
+A successful run reports `Passed: 1 (100.00%)`. The test parses and prints a
 single `tutorial.constant` operation using the custom `tutorial-opt` binary and
 checks its output with FileCheck.
