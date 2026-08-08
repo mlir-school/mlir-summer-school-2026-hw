@@ -40,4 +40,29 @@ def List_ListType : List_Type<"List", "list"> {
   ];
 }
 
+def List_RefType : List_Type<"Ref", "ref"> {
+  let summary = "reference to an integer or list value";
+  let description = [{
+    `!list.ref` represents a mutable reference to an integer or list value.
+
+    Examples:
+
+    ```mlir
+    !list.ref<i32>
+    !list.ref<!list.list<i1>>
+    ```
+  }];
+
+  let parameters = (ins "::mlir::Type":$elementType);
+  let assemblyFormat = "`<` $elementType `>`";
+
+  let genVerifyDecl = 1;
+
+  let builders = [
+    TypeBuilderWithInferredContext<(ins "::mlir::Type":$elementType), [{
+      return $_get(elementType.getContext(), elementType);
+    }]>
+  ];
+}
+
 #endif // MLIR_DIALECT_LIST_IR_LISTTYPES

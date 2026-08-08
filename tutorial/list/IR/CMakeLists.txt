@@ -15,12 +15,17 @@ add_public_tablegen_target(MLIRListOpsIncGen)
 add_mlir_library(ListDialect
   ListDialect.cpp
   ListOps.cpp
+  ListTypes.cpp
 
   DEPENDS
   MLIRListOpsIncGen
 
   LINK_LIBS PUBLIC
+  MLIRArithDialect
   MLIRDialect
   MLIRIR
+  MLIRMemorySlotInterfaces
+  MLIRMemorySlotUtils
+  MLIRSideEffectInterfaces
   MLIRSupport
 )

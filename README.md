@@ -18,6 +18,8 @@ The tutorial dialect lives in `tutorial/list/IR`, split across the files that an
 Its TableGen file defines the entire dialect surface:
 
 - `!list.list<T>`: a parameterized list type.
+- `!list.ref<T>`: a mutable reference to an integer or list value.
+- `list.alloca` / `list.store` / `list.load`: creates and accesses references.
 - `list.empty`: creates an empty list.
 - `list.range`: creates a list holding a half-open range.
 - `list.from_elements`: creates a list from its elements.
@@ -28,6 +30,7 @@ Its TableGen file defines the entire dialect surface:
 - `list.length`: returns a list length as `i32`.
 - `list.is_empty`: returns whether a list is empty.
 - `list.reverse`: reverses a list.
+- `list.fold`: folds a list from front to back with zero or more accumulators.
 - `list.map` / `list.yield`: applies a region to every element of a list.
 - `list.print`: prints the elements of a list.
 

@@ -13,6 +13,8 @@ include "list/IR/ListDialect.td"
 include "list/IR/ListTypes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/MemorySlotInterfaces.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class List_Op<string mnemonic, list<Trait> traits = []>
     : Op<List_Dialect, mnemonic, traits>;
@@ -138,7 +140,54 @@ def List_LengthOp : List_Op<"length"> {
   ];
 }
 
-def List_MapOp : List_Op<"map"> {
+def List_FoldOp : List_Op<"fold", [
+    DeclareOpInterfaceMethods<PromotableRegionOpInterface>]> {
+  let summary = "fold a list from front to back";
+  let description = [{
+    Traverses the input list from front to back while carrying zero or more
+    accumulator values. The first body argument is the current list element;
+    the remaining body arguments are the current accumulators. `list.yield`
+    supplies the accumulator values for the next element. The operation
+    results are the final accumulator values, or the initial values when the
+    input list is empty.
+
+    Accumulators may be integers or lists. Their operand, body argument,
+    yielded value and result types must match positionally.
+
+    Example:
+
+    ```mlir
+    %sum, %copy = list.fold %input with (%element : i32)
+        iter_args(%acc = %zero, %items = %empty)
+        -> (i32, !list.list<i32>) {
+      %next_sum = arith.addi %element, %acc : i32
+      %next_list = list.push_back %items, %element : !list.list<i32>
+      list.yield %next_sum, %next_list : i32, !list.list<i32>
+    }
+    ```
+  }];
+
+  let arguments = (ins List_ListType:$input,
+      Variadic<AnyTypeOf<[AnyInteger, List_ListType]>>:$iterArgs);
+  let results = (outs
+      Variadic<AnyTypeOf<[AnyInteger, List_ListType]>>:$res);
+  let regions = (region SizedRegion<1>:$body);
+
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$input, "::mlir::ValueRange":$iterArgs)>
+  ];
+
+  let extraClassDeclaration = [{
+    /// Returns the single block of the body region.
+    ::mlir::Block &getBodyBlock() { return getBody().front(); }
+  }];
+}
+
+def List_MapOp : List_Op<"map", [
+    DeclareOpInterfaceMethods<PromotableRegionOpInterface>]> {
   let summary = "apply a computation to every element of a list";
   let description = [{
     Produces a list of the same length as the operand list, where every element
@@ -345,11 +394,13 @@ def List_ReverseOp : List_Op<"reverse", [AllTypesMatch<["input", "result"]>]> {
   ];
 }
 
-def List_YieldOp : List_Op<"yield", [Terminator, HasParent<"MapOp">]> {
-  let summary = "terminate and yield from a list.map body";
+def List_YieldOp : List_Op<"yield",
+    [Terminator, ParentOneOf<["FoldOp", "MapOp"]>]> {
+  let summary = "terminate and yield from a list region";
   let description = [{
-    Terminates the body region of a `list.map` operation and yields the value
-    computed for one element of the mapped list.
+    Terminates the body region of a `list.map` or `list.fold` operation. A map
+    body yields exactly one result element. A fold body yields one value for
+    every accumulator, or no values when the fold has no accumulators.
 
     Example:
 
@@ -358,9 +409,82 @@ def List_YieldOp : List_Op<"yield", [Terminator, HasParent<"MapOp">]> {
     ```
   }];
 
-  let arguments = (ins AnyTypeOf<[AnyInteger, List_ListType]>:$yielded);
+  let arguments = (ins
+      Variadic<AnyTypeOf<[AnyInteger, List_ListType]>>:$yielded);
 
-  let assemblyFormat = "$yielded attr-dict `:` qualified(type($yielded))";
+  let assemblyFormat = "attr-dict ($yielded^ `:` qualified(type($yielded)))?";
+}
+
+//===----------------------------------------------------------------------===//
+// Reference operations
+//===----------------------------------------------------------------------===//
+
+def List_AllocaOp : List_Op<"alloca", [
+    DeclareOpInterfaceMethods<PromotableAllocationOpInterface>]> {
+  let summary = "allocate a mutable reference";
+  let description = [{
+    Allocates an uninitialized mutable reference to an integer or list value.
+
+    Example:
+
+    ```mlir
+    %ref = list.alloca : !list.ref<i32>
+    ```
+  }];
+
+  let results = (outs Res<List_RefType, "allocated reference", [MemAlloc]>:$ref);
+
+  let assemblyFormat = "attr-dict `:` qualified(type($ref))";
+}
+
+def List_StoreOp : List_Op<"store", [
+    DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+  let summary = "store a value through a mutable reference";
+  let description = [{
+    Stores an integer or list value into a reference with the same element
+    type.
+
+    Example:
+
+    ```mlir
+    list.store %value, %ref : !list.ref<i32>
+    ```
+  }];
+
+  let arguments = (ins
+      AnyTypeOf<[AnyInteger, List_ListType]>:$value,
+      List_RefType:$ref);
+
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+}
+
+def List_LoadOp : List_Op<"load", [
+    DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+  let summary = "load a value through a mutable reference";
+  let description = [{
+    Loads the integer or list value held by a reference.
+
+    Example:
+
+    ```mlir
+    %value = list.load %ref : !list.ref<i32>
+    ```
+  }];
+
+  let arguments = (ins List_RefType:$ref);
+  let results = (outs AnyTypeOf<[AnyInteger, List_ListType]>:$value);
+
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$ref), [{
+      build($_builder, $_state,
+            ::llvm::cast<::mlir::list::RefType>(ref.getType()).getElementType(),
+            ref);
+    }]>
+  ];
 }
 
 #endif // MLIR_DIALECT_LIST_IR_LISTOPS

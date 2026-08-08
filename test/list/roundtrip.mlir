@@ -154,6 +154,61 @@ func.func @map(%list: !list.list<i32>) -> !list.list<i64> {
 
 // -----
 
+func.func @fold_one_iter_arg(%input: !list.list<i32>, %initial: i32) -> i32 {
+  %sum = list.fold %input with (%element : i32)
+      iter_args(%acc = %initial) -> (i32) {
+    %next = arith.addi %element, %acc : i32
+    list.yield %next : i32
+  }
+  return %sum : i32
+}
+
+// CHECK-LABEL: func.func @fold_one_iter_arg
+// CHECK:      %[[RESULT:.*]] = list.fold %{{.*}} with (%[[ELEMENT:.*]]: i32) iter_args(%[[ACC:.*]] = %{{.*}}) -> (i32) {
+// CHECK-NEXT:   %[[NEXT:.*]] = arith.addi %[[ELEMENT]], %[[ACC]] : i32
+// CHECK-NEXT:   list.yield %[[NEXT]] : i32
+// CHECK-NEXT: }
+// CHECK: return %[[RESULT]] : i32
+
+// -----
+
+func.func @fold(%input: !list.list<i32>, %zero: i32,
+                %empty: !list.list<i32>) -> (i32, !list.list<i32>) {
+  %sum, %copy = list.fold %input with (%element : i32)
+      iter_args(%acc = %zero, %items = %empty)
+      -> (i32, !list.list<i32>) {
+    %next_sum = arith.addi %element, %acc : i32
+    %next_list = list.push_back %items, %element : !list.list<i32>
+    list.yield %next_sum, %next_list : i32, !list.list<i32>
+  }
+  return %sum, %copy : i32, !list.list<i32>
+}
+
+// CHECK-LABEL: func.func @fold
+// CHECK:      %[[RESULTS:.*]]:2 = list.fold %{{.*}} with (%[[ELEMENT:.*]]: i32) iter_args(%[[ACC:.*]] = %{{.*}}, %[[ITEMS:.*]] = %{{.*}}) -> (i32, !list.list<i32>) {
+// CHECK-NEXT:   %[[NEXT_SUM:.*]] = arith.addi %[[ELEMENT]], %[[ACC]] : i32
+// CHECK-NEXT:   %[[NEXT_LIST:.*]] = list.push_back %[[ITEMS]], %[[ELEMENT]] : !list.list<i32>
+// CHECK-NEXT:   list.yield %[[NEXT_SUM]], %[[NEXT_LIST]] : i32, !list.list<i32>
+// CHECK-NEXT: }
+// CHECK: return %[[RESULTS]]#0, %[[RESULTS]]#1 : i32, !list.list<i32>
+
+// -----
+
+func.func @fold_no_iter_args(%input: !list.list<i32>) {
+  list.fold %input with (%element : i32) {
+    list.yield
+  }
+  return
+}
+
+// CHECK-LABEL: func.func @fold_no_iter_args
+// CHECK:      list.fold %{{.*}} with (%{{.*}}: i32) {
+// CHECK-NEXT:   list.yield
+// CHECK-NEXT: }
+// CHECK: return
+
+// -----
+
 func.func @map_nested(%list: !list.list<i32>) -> !list.list<i32> {
   %mapped = list.map %list with (%outer : i32) -> i32 {
     %inner_list = list.map %list with (%inner : i32) -> i32 {

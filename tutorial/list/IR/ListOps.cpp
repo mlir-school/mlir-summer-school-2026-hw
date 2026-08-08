@@ -8,9 +8,12 @@
 
 #include "list/IR/List.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/Interfaces/Utils/MemorySlotUtils.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace mlir;
 using namespace mlir::list;
@@ -41,6 +44,206 @@ LogicalResult GetElementsOp::verify() {
              << index << " to have the element type of the operand list ("
              << elementType << "), but got " << type;
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// FoldOp
+//===----------------------------------------------------------------------===//
+
+void FoldOp::build(OpBuilder &builder, OperationState &state, Value input,
+                   ValueRange iterArgs) {
+  state.addOperands(input);
+  state.addOperands(iterArgs);
+  state.addTypes(iterArgs.getTypes());
+
+  Block &body = state.addRegion()->emplaceBlock();
+  body.addArgument(cast<ListType>(input.getType()).getElementType(),
+                   input.getLoc());
+  for (Value iterArg : iterArgs)
+    body.addArgument(iterArg.getType(), iterArg.getLoc());
+}
+
+ParseResult FoldOp::parse(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::UnresolvedOperand input;
+  if (parser.parseOperand(input) || parser.parseKeyword("with") ||
+      parser.parseLParen())
+    return failure();
+
+  OpAsmParser::Argument elementArgument;
+  if (parser.parseArgument(elementArgument, /*allowType=*/true) ||
+      parser.parseRParen())
+    return failure();
+
+  SmallVector<OpAsmParser::Argument> bodyArguments{elementArgument};
+  SmallVector<OpAsmParser::UnresolvedOperand> iterArgOperands;
+  SmallVector<Type> iterArgTypes;
+  SMLoc iterArgsLoc = parser.getCurrentLocation();
+
+  if (succeeded(parser.parseOptionalKeyword("iter_args"))) {
+    if (parser.parseCommaSeparatedList(
+            AsmParser::Delimiter::Paren, [&]() -> ParseResult {
+              OpAsmParser::Argument argument;
+              OpAsmParser::UnresolvedOperand operand;
+              if (parser.parseArgument(argument) || parser.parseEqual() ||
+                  parser.parseOperand(operand))
+                return failure();
+              bodyArguments.push_back(argument);
+              iterArgOperands.push_back(operand);
+              return success();
+            }) ||
+        parser.parseArrow() || parser.parseLParen() ||
+        parser.parseTypeList(iterArgTypes) || parser.parseRParen())
+      return failure();
+  }
+
+  if (iterArgOperands.size() != iterArgTypes.size())
+    return parser.emitError(iterArgsLoc)
+           << "expected " << iterArgOperands.size()
+           << " iter_arg types, but got " << iterArgTypes.size();
+
+  auto inputElementType =
+      dyn_cast_if_present<IntegerType>(elementArgument.type);
+  if (!inputElementType)
+    return parser.emitError(elementArgument.ssaName.location,
+                            "expected the element argument to have an integer "
+                            "type");
+
+  for (Type type : iterArgTypes)
+    if (!isa<IntegerType, ListType>(type))
+      return parser.emitError(iterArgsLoc,
+                              "expected iter_args to be integers or lists");
+
+  for (auto [index, type] : llvm::enumerate(iterArgTypes))
+    bodyArguments[index + 1].type = type;
+
+  if (parser.resolveOperand(input, ListType::get(inputElementType),
+                            result.operands) ||
+      parser.resolveOperands(iterArgOperands, iterArgTypes, iterArgsLoc,
+                             result.operands))
+    return failure();
+
+  result.addTypes(iterArgTypes);
+  Region *body = result.addRegion();
+  if (parser.parseRegion(*body, bodyArguments) ||
+      parser.parseOptionalAttrDict(result.attributes))
+    return failure();
+
+  return success();
+}
+
+void FoldOp::print(OpAsmPrinter &p) {
+  p << ' ' << getInput() << " with (";
+  p.printRegionArgument(getBodyBlock().getArgument(0));
+  p << ')';
+
+  if (!getIterArgs().empty()) {
+    p << " iter_args(";
+    llvm::interleaveComma(
+        llvm::zip(getBodyBlock().getArguments().drop_front(), getIterArgs()), p,
+        [&](auto pair) {
+          p.printRegionArgument(std::get<0>(pair), /*argAttrs=*/{},
+                                /*omitType=*/true);
+          p << " = " << std::get<1>(pair);
+        });
+    p << ") -> (";
+    llvm::interleaveComma(getIterArgs().getTypes(), p,
+                          [&](Type type) { p << type; });
+    p << ')';
+  }
+
+  p << ' ';
+  p.printRegion(getBody(), /*printEntryBlockArgs=*/false);
+  p.printOptionalAttrDict((*this)->getAttrs());
+}
+
+LogicalResult FoldOp::verify() {
+  Block &body = getBodyBlock();
+  unsigned expectedBodyArgumentCount = getIterArgs().size() + 1;
+  if (body.getNumArguments() != expectedBodyArgumentCount)
+    return emitOpError("expects the body to have exactly ")
+           << expectedBodyArgumentCount << " arguments";
+
+  if (getRes().size() != getIterArgs().size())
+    return emitOpError("expects ")
+           << getIterArgs().size() << " results, but got " << getRes().size();
+
+  Type inputElementType = cast<ListType>(getInput().getType()).getElementType();
+  if (body.getArgument(0).getType() != inputElementType)
+    return emitOpError("expects the element argument type (")
+           << body.getArgument(0).getType()
+           << ") to match the element type of the input list ("
+           << inputElementType << ")";
+
+  for (auto [index, blockArgument] :
+       llvm::enumerate(body.getArguments().drop_front())) {
+    Type iterArgType = getIterArgs()[index].getType();
+    if (blockArgument.getType() != iterArgType)
+      return emitOpError("expects iter_arg block argument #")
+             << index << " to have type " << iterArgType << ", but got "
+             << blockArgument.getType();
+    if (getRes()[index].getType() != iterArgType)
+      return emitOpError("expects result #")
+             << index << " to have type " << iterArgType << ", but got "
+             << getRes()[index].getType();
+  }
+
+  auto yieldOp =
+      dyn_cast_if_present<YieldOp>(body.empty() ? nullptr : &body.back());
+  if (!yieldOp)
+    return emitOpError("expects the body to be terminated by '")
+           << YieldOp::getOperationName() << "'";
+
+  if (yieldOp.getYielded().size() != getIterArgs().size())
+    return emitOpError("expects ")
+           << getIterArgs().size() << " yielded values, but got "
+           << yieldOp.getYielded().size();
+
+  for (auto [index, yielded] : llvm::enumerate(yieldOp.getYielded())) {
+    Type iterArgType = getIterArgs()[index].getType();
+    if (yielded.getType() != iterArgType)
+      return emitOpError("expects yielded value #")
+             << index << " to have type " << iterArgType << ", but got "
+             << yielded.getType();
+  }
+
+  return success();
+}
+
+bool FoldOp::isRegionPromotable(const MemorySlot &, Region *, bool) {
+  return true;
+}
+
+void FoldOp::setupPromotion(
+    const MemorySlot &slot, Value reachingDef, bool hasValueStores,
+    llvm::SmallMapVector<Region *, Value, 2> &regionsToProcess) {
+  Region &bodyRegion = getBody();
+  if (!hasValueStores) {
+    regionsToProcess.insert({&bodyRegion, reachingDef});
+    return;
+  }
+
+  getIterArgsMutable().append(reachingDef);
+  bodyRegion.addArgument(slot.elemType, slot.ptr.getLoc());
+  regionsToProcess.insert({&bodyRegion, bodyRegion.getArguments().back()});
+}
+
+Value FoldOp::finalizePromotion(
+    const MemorySlot &slot, Value entryReachingDef, bool hasValueStores,
+    const llvm::DenseMap<Block *, Value> &reachingAtBlockEnd,
+    OpBuilder &builder) {
+  if (!hasValueStores)
+    return entryReachingDef;
+
+  memoryslot::updateTerminator(&getBodyBlock(), entryReachingDef,
+                               reachingAtBlockEnd);
+
+  SmallVector<Type> resultTypes(getResultTypes());
+  resultTypes.push_back(slot.elemType);
+
+  IRRewriter rewriter(builder);
+  Operation *newOp =
+      memoryslot::replaceWithNewResults(rewriter, getOperation(), resultTypes);
+  return newOp->getResults().back();
 }
 
 //===----------------------------------------------------------------------===//
@@ -124,15 +327,188 @@ LogicalResult MapOp::verify() {
     return emitOpError("expects the body to be terminated by '")
            << YieldOp::getOperationName() << "'";
 
+  if (yieldOp.getYielded().size() != 1)
+    return emitOpError("expects the body to yield exactly one value");
+
   Type resultElementType =
       cast<ListType>(getResult().getType()).getElementType();
-  if (yieldOp.getYielded().getType() != resultElementType)
+  if (yieldOp.getYielded().front().getType() != resultElementType)
     return emitOpError("expects the yielded type (")
-           << yieldOp.getYielded().getType()
+           << yieldOp.getYielded().front().getType()
            << ") to match the element type of the result list ("
            << resultElementType << ")";
 
   return success();
+}
+
+bool MapOp::isRegionPromotable(const MemorySlot &, Region *,
+                               bool hasValueStores) {
+  return !hasValueStores;
+}
+
+void MapOp::setupPromotion(
+    const MemorySlot &, Value reachingDef, bool hasValueStores,
+    llvm::SmallMapVector<Region *, Value, 2> &regionsToProcess) {
+  assert(!hasValueStores && "MapOp does not support stores");
+  regionsToProcess.insert({&getBody(), reachingDef});
+}
+
+Value MapOp::finalizePromotion(
+    const MemorySlot &, Value entryReachingDef, bool hasValueStores,
+    const llvm::DenseMap<Block *, Value> &, OpBuilder &) {
+  assert(!hasValueStores && "MapOp does not support stores");
+  return entryReachingDef;
+}
+
+//===----------------------------------------------------------------------===//
+// AllocaOp
+//===----------------------------------------------------------------------===//
+
+SmallVector<MemorySlot> AllocaOp::getPromotableSlots() {
+  return {{getRef(), cast<RefType>(getRef().getType()).getElementType()}};
+}
+
+Value AllocaOp::getDefaultValue(const MemorySlot &slot, OpBuilder &builder) {
+  if (isa<IntegerType>(slot.elemType)) {
+    auto zero = builder.getIntegerAttr(slot.elemType, 0);
+    return arith::ConstantOp::create(builder, getLoc(), zero);
+  }
+  return EmptyOp::create(builder, getLoc(), slot.elemType);
+}
+
+void AllocaOp::handleBlockArgument(const MemorySlot &, BlockArgument,
+                                   OpBuilder &) {}
+
+std::optional<PromotableAllocationOpInterface>
+AllocaOp::handlePromotionComplete(const MemorySlot &, Value defaultValue,
+                                  OpBuilder &) {
+  if (defaultValue && defaultValue.use_empty())
+    defaultValue.getDefiningOp()->erase();
+  this->erase();
+  return std::nullopt;
+}
+
+//===----------------------------------------------------------------------===//
+// StoreOp
+//===----------------------------------------------------------------------===//
+
+ParseResult StoreOp::parse(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::UnresolvedOperand value;
+  OpAsmParser::UnresolvedOperand ref;
+  Type type;
+  if (parser.parseOperand(value) || parser.parseComma() ||
+      parser.parseOperand(ref) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(type))
+    return failure();
+
+  auto refType = dyn_cast<RefType>(type);
+  if (!refType)
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected a list reference type");
+
+  if (parser.resolveOperand(value, refType.getElementType(), result.operands) ||
+      parser.resolveOperand(ref, refType, result.operands))
+    return failure();
+  return success();
+}
+
+void StoreOp::print(OpAsmPrinter &printer) {
+  printer << ' ' << getValue() << ", " << getRef();
+  printer.printOptionalAttrDict((*this)->getAttrs());
+  printer << " : " << getRef().getType();
+}
+
+LogicalResult StoreOp::verify() {
+  if (getValue().getType() != getRef().getType().getElementType())
+    return emitOpError("expects the stored value type to match the reference "
+                       "element type");
+  return success();
+}
+
+bool StoreOp::loadsFrom(const MemorySlot &) { return false; }
+
+bool StoreOp::storesTo(const MemorySlot &slot) { return getRef() == slot.ptr; }
+
+Value StoreOp::getStored(const MemorySlot &, OpBuilder &, Value,
+                         const DataLayout &) {
+  return getValue();
+}
+
+bool StoreOp::canUsesBeRemoved(const MemorySlot &slot,
+                               const llvm::SmallPtrSetImpl<OpOperand *> &
+                                   blockingUses,
+                               llvm::SmallVectorImpl<OpOperand *> &,
+                               const DataLayout &) {
+  return blockingUses.contains(&getRefMutable()) &&
+         !blockingUses.contains(&getValueMutable()) &&
+         getRef() == slot.ptr &&
+         getValue().getType() == slot.elemType;
+}
+
+DeletionKind StoreOp::removeBlockingUses(
+    const MemorySlot &, const llvm::SmallPtrSetImpl<OpOperand *> &, OpBuilder &,
+    Value, const DataLayout &) {
+  return DeletionKind::Delete;
+}
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+ParseResult LoadOp::parse(OpAsmParser &parser, OperationState &result) {
+  OpAsmParser::UnresolvedOperand ref;
+  Type type;
+  if (parser.parseOperand(ref) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(type))
+    return failure();
+
+  auto refType = dyn_cast<RefType>(type);
+  if (!refType)
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected a list reference type");
+
+  result.addTypes(refType.getElementType());
+  return parser.resolveOperand(ref, refType, result.operands);
+}
+
+void LoadOp::print(OpAsmPrinter &printer) {
+  printer << ' ' << getRef();
+  printer.printOptionalAttrDict((*this)->getAttrs());
+  printer << " : " << getRef().getType();
+}
+
+LogicalResult LoadOp::verify() {
+  if (getValue().getType() != getRef().getType().getElementType())
+    return emitOpError("expects the loaded value type to match the reference "
+                       "element type");
+  return success();
+}
+
+bool LoadOp::loadsFrom(const MemorySlot &slot) { return getRef() == slot.ptr; }
+
+bool LoadOp::storesTo(const MemorySlot &) { return false; }
+
+Value LoadOp::getStored(const MemorySlot &, OpBuilder &, Value,
+                        const DataLayout &) {
+  llvm_unreachable("getStored should not be called on LoadOp");
+}
+
+bool LoadOp::canUsesBeRemoved(const MemorySlot &slot,
+                              const llvm::SmallPtrSetImpl<OpOperand *> &
+                                  blockingUses,
+                              llvm::SmallVectorImpl<OpOperand *> &,
+                              const DataLayout &) {
+  return blockingUses.contains(&getRefMutable()) && getRef() == slot.ptr &&
+         getValue().getType() == slot.elemType;
+}
+
+DeletionKind LoadOp::removeBlockingUses(
+    const MemorySlot &, const llvm::SmallPtrSetImpl<OpOperand *> &, OpBuilder &,
+    Value reachingDefinition, const DataLayout &) {
+  getValue().replaceAllUsesWith(reachingDefinition);
+  return DeletionKind::Delete;
 }
 
 //===----------------------------------------------------------------------===//
