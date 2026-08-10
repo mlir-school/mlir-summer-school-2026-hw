@@ -1,0 +1,42 @@
+%YAML 1.2
+---
+# Minimal TableGen syntax definition, used for highlighting in ods-cheatsheet.typ
+name: TableGen
+file_extensions: [td]
+scope: source.tablegen
+
+contexts:
+  main:
+    - match: //.*$
+      scope: comment.line.double-slash.tablegen
+    - match: /\*
+      push:
+        - meta_scope: comment.block.tablegen
+        - match: \*/
+          pop: true
+    - match: '\[\{'
+      push:
+        - meta_scope: string.quoted.other.tablegen
+        - match: '\}\]'
+          pop: true
+    - match: '"'
+      push:
+        - meta_scope: string.quoted.double.tablegen
+        - match: '"'
+          pop: true
+    - match: '\b(class|def|defm|defvar|defset|multiclass)\s+([A-Za-z_][A-Za-z0-9_]*)'
+      captures:
+        1: keyword.declaration.tablegen
+        2: entity.name.type.tablegen
+    - match: \b(class|def|defm|defvar|defset|multiclass|let|in|include|foreach|if|then|else|assert)\b
+      scope: keyword.declaration.tablegen
+    - match: \b(int|string|bit|bits|list|dag|code|bool)\b
+      scope: storage.type.tablegen
+    - match: '\$[A-Za-z_][A-Za-z0-9_]*'
+      scope: variable.parameter.tablegen
+    - match: '![A-Za-z]+'
+      scope: keyword.operator.tablegen
+    - match: '\b(ins|outs|region|successor)\b'
+      scope: support.function.tablegen
+    - match: \b[0-9]+\b
+      scope: constant.numeric.tablegen

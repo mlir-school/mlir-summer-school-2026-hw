@@ -1,0 +1,34 @@
+%YAML 1.2
+---
+# Minimal MLIR syntax definition, used for highlighting in ods-cheatsheet.typ
+name: MLIR
+file_extensions: [mlir]
+scope: source.mlir
+
+contexts:
+  main:
+    - match: //.*$
+      scope: comment.line.double-slash.mlir
+    - match: '"'
+      push:
+        - meta_scope: string.quoted.double.mlir
+        - match: '"'
+          pop: true
+    - match: '%[A-Za-z0-9_$.#]+'
+      scope: variable.other.mlir
+    - match: '@[A-Za-z0-9_$.]+'
+      scope: entity.name.function.mlir
+    - match: '\^[A-Za-z0-9_$.]+'
+      scope: entity.name.label.mlir
+    - match: '![A-Za-z_][A-Za-z0-9_.]*'
+      scope: storage.type.mlir
+    - match: '#[A-Za-z_][A-Za-z0-9_.]*'
+      scope: constant.other.mlir
+    - match: '\b[a-z_][a-zA-Z0-9_]*(\.[a-z_][a-zA-Z0-9_]*)+'
+      scope: support.function.mlir
+    - match: \b(i[0-9]+|si[0-9]+|ui[0-9]+|f16|bf16|f32|f64|index|none|memref|tensor|vector)\b
+      scope: storage.type.mlir
+    - match: \b(func|module|return|attributes|loc|dense|to|with|true|false)\b
+      scope: keyword.control.mlir
+    - match: '\b[0-9]+\b'
+      scope: constant.numeric.mlir
