@@ -32,7 +32,12 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 Use uv to install Python 3.12, create an isolated environment, and install the
-required packages. Do not use the system Python for this project.
+required packages. This includes CMake and Ninja, so the build does not depend
+on a system installation of either tool. Do not use the system Python for this
+project.
+
+A C and C++ compiler is still required from your operating system; uv manages
+the Python, CMake, Ninja, lit, and MLIR dependencies used below.
 
 ```bash
 uv python install 3.12
@@ -44,6 +49,8 @@ Check that the MLIR wheel is available:
 
 ```bash
 .venv/bin/python -m mlir_wheel --root-dir
+.venv/bin/cmake --version
+.venv/bin/ninja --version
 ```
 
 ## Build
@@ -51,7 +58,7 @@ Check that the MLIR wheel is available:
 Configure CMake against the MLIR wheel:
 
 ```bash
-cmake -S . -B build \
+.venv/bin/cmake -S . -B build -G Ninja \
   -DCMAKE_PREFIX_PATH=$(.venv/bin/python -m mlir_wheel --root-dir) \
   -DLLVM_EXTERNAL_LIT=$(pwd)/.venv/bin/lit
 ```
@@ -59,7 +66,7 @@ cmake -S . -B build \
 Build the minimal `tutorial-opt` tool:
 
 ```bash
-cmake --build build --target tutorial-opt
+.venv/bin/cmake --build build --target tutorial-opt
 ```
 
 ## Check your installation
@@ -67,7 +74,7 @@ cmake --build build --target tutorial-opt
 Run the lit and FileCheck smoke test:
 
 ```bash
-cmake --build build --target check-tutorial
+.venv/bin/cmake --build build --target check-tutorial
 ```
 
 A successful run reports `Passed: 1 (100.00%)`. The test parses and prints a
