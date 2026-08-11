@@ -33,19 +33,35 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValueAttr(); }
 std::optional<int64_t> EmptyOp::getStaticLength() { return 0; }
 
 //===----------------------------------------------------------------------===//
+// FromElementsOp
+//===----------------------------------------------------------------------===//
+
+std::optional<int64_t> FromElementsOp::getStaticLength() {
+  return getElements().size();
+}
+
+//===----------------------------------------------------------------------===//
 // LengthOp
 //===----------------------------------------------------------------------===//
 
 OpFoldResult LengthOp::fold(FoldAdaptor adaptor) {
-  // TODO: Query the input's defining operation through
-  // ListLengthOpInterface. If it reports a length, return an IntegerAttr of
-  // the result type. A block argument or unknown length must not be folded.
-  return {};
+  auto producer = getInput().getDefiningOp<ListLengthOpInterface>();
+  if (!producer)
+    return {};
+
+  std::optional<int64_t> length = producer.getStaticLength();
+  if (!length)
+    return {};
+
+  return IntegerAttr::get(getType(), *length);
 }
 
-// TODO: Implement getStaticLength() for FromElementsOp, MapOp, PushBackOp and
-// ReverseOp after attaching ListLengthOpInterface to each operation in
-// ListOps.td.
+static std::optional<int64_t> inferStaticListLength(Value list) {
+  auto producer = list.getDefiningOp<ListLengthOpInterface>();
+  if (!producer)
+    return std::nullopt;
+  return producer.getStaticLength();
+}
 
 //===----------------------------------------------------------------------===//
 // MapOp
@@ -133,6 +149,29 @@ LogicalResult MapOp::verifyRegions() {
            << resultElementType << ")";
 
   return success();
+}
+
+std::optional<int64_t> MapOp::getStaticLength() {
+  return inferStaticListLength(getInput());
+}
+
+//===----------------------------------------------------------------------===//
+// PushBackOp
+//===----------------------------------------------------------------------===//
+
+std::optional<int64_t> PushBackOp::getStaticLength() {
+  std::optional<int64_t> inputLength = inferStaticListLength(getInput());
+  if (!inputLength)
+    return std::nullopt;
+  return *inputLength + 1;
+}
+
+//===----------------------------------------------------------------------===//
+// ReverseOp
+//===----------------------------------------------------------------------===//
+
+std::optional<int64_t> ReverseOp::getStaticLength() {
+  return inferStaticListLength(getInput());
 }
 
 //===----------------------------------------------------------------------===//

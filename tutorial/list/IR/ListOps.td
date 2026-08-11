@@ -80,8 +80,8 @@ def List_EmptyOp : List_Op<"empty",
 }
 
 def List_FromElementsOp : List_Op<"from_elements",
-    [Pure, List_ItemTypesMatchElementType<"result", "elements">]> {
-  // TODO: Attach ListLengthOpInterface.
+    [Pure, List_ItemTypesMatchElementType<"result", "elements">,
+     DeclareOpInterfaceMethods<ListLengthOpInterface>]> {
   let summary = "list holding the given elements";
   let description = [{
     Creates a list of the operands, in the order in which they are given. The
@@ -177,14 +177,13 @@ def List_LengthOp : List_Op<"length", [Pure]> {
     }]>
   ];
 
-  // TODO: Implement this folder using ListLengthOpInterface.
   let hasFolder = 1;
 }
 
 def List_MapOp : List_Op<"map",
     [RecursiveMemoryEffects,
-     SingleBlockImplicitTerminator<"::mlir::list::YieldOp">]> {
-  // TODO: Attach ListLengthOpInterface.
+     SingleBlockImplicitTerminator<"::mlir::list::YieldOp">,
+     DeclareOpInterfaceMethods<ListLengthOpInterface>]> {
   let summary = "apply a computation to every element of a list";
   let description = [{
     Produces a list of the same length as the operand list, where every element
@@ -305,8 +304,8 @@ def List_PrintOp : List_Op<"print", [MemoryEffects<[MemWrite]>]> {
 
 def List_PushBackOp : List_Op<"push_back",
     [Pure, AllTypesMatch<["input", "result"]>,
-     List_ItemTypeMatchesElementType<"input", "item">]> {
-  // TODO: Attach ListLengthOpInterface.
+     List_ItemTypeMatchesElementType<"input", "item">,
+     DeclareOpInterfaceMethods<ListLengthOpInterface>]> {
   let summary = "list with an element appended";
   let description = [{
     Returns the operand list with `$item` appended to it.
@@ -378,8 +377,8 @@ def List_RangeOp : List_Op<"range", [Pure]> {
 }
 
 def List_ReverseOp : List_Op<"reverse",
-    [Pure, AllTypesMatch<["input", "result"]>]> {
-  // TODO: Attach ListLengthOpInterface.
+    [Pure, AllTypesMatch<["input", "result"]>,
+     DeclareOpInterfaceMethods<ListLengthOpInterface>]> {
   let summary = "list with its elements in reverse order";
   let description = [{
     Returns the elements of the operand list in reverse order.
