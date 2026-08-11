@@ -20,6 +20,16 @@ Complete the Exercise 1 TODOs in those two files:
    operation through `ListLengthOpInterface`. Do not fold when the input has no
    defining operation or its length is unknown.
 
+### Exercise 1 validation
+
+```bash
+lit -sv build/test --filter='list/interfaces.mlir'
+```
+
+Exercise 1 is complete when the selected test passes. This validates all
+**7 of 7 FileCheck scenarios**: the supplied empty-list reference, four direct
+or preserving-operation cases, one chained case, and one unknown-length case.
+
 ## Exercise 2: external interface models
 
 Extend the analysis to find the length of a constant `list.range`. The range is
@@ -39,7 +49,17 @@ registration call are provided. Complete the Exercise 2 TODOs:
    defining operations through `ConstantIntOpInterface`. Return
    `std::nullopt` if either bound is unknown.
 
-## Validation
+### Exercise 2 validation
+
+```bash
+lit -sv build/test --filter='list/external-models.mlir'
+```
+
+Exercise 2 is complete when the selected test passes. This validates all
+**4 of 4 FileCheck scenarios**: a constant range, an empty range, an unknown
+bound that must not fold, and a range composed with the Exercise 1 operations.
+
+## Final validation
 
 Run the complete list-dialect test suite:
 
