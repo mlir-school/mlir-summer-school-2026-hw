@@ -23,6 +23,7 @@ Complete the Exercise 1 TODOs in those two files:
 ### Exercise 1 validation
 
 ```bash
+cmake --build build --target tutorial-opt
 lit -sv build/test --filter='list/interfaces.mlir'
 ```
 
@@ -52,6 +53,7 @@ registration call are provided. Complete the Exercise 2 TODOs:
 ### Exercise 2 validation
 
 ```bash
+cmake --build build --target tutorial-opt
 lit -sv build/test --filter='list/external-models.mlir'
 ```
 
