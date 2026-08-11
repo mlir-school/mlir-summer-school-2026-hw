@@ -2,6 +2,11 @@
 # List dialect tutorial
 #===----------------------------------------------------------------------===#
 
+set(LLVM_TARGET_DEFINITIONS ListInterfaces.td)
+mlir_tablegen(ListInterfaces.h.inc -gen-op-interface-decls)
+mlir_tablegen(ListInterfaces.cpp.inc -gen-op-interface-defs)
+add_public_tablegen_target(MLIRListInterfacesIncGen)
+
 set(LLVM_TARGET_DEFINITIONS ListOps.td)
 mlir_tablegen(ListOps.h.inc -gen-op-decls)
 mlir_tablegen(ListOps.cpp.inc -gen-op-defs)
@@ -19,6 +24,7 @@ add_mlir_library(ListDialect
   ListOps.cpp
 
   DEPENDS
+  MLIRListInterfacesIncGen
   MLIRListOpsIncGen
 
   LINK_LIBS PUBLIC

@@ -10,6 +10,7 @@
 #define MLIR_DIALECT_LIST_IR_LISTOPS
 
 include "list/IR/ListDialect.td"
+include "list/IR/ListInterfaces.td"
 include "list/IR/ListTypes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
@@ -58,7 +59,10 @@ def List_ConstantOp : List_Op<"constant",
   let hasFolder = 1;
 }
 
-def List_EmptyOp : List_Op<"empty", [Pure]> {
+// This operation is a complete example of attaching and implementing
+// ListLengthOpInterface. Use it as a reference for the exercise operations.
+def List_EmptyOp : List_Op<"empty",
+    [Pure, DeclareOpInterfaceMethods<ListLengthOpInterface>]> {
   let summary = "list without any element";
   let description = [{
     Creates a list that holds no element.
@@ -77,6 +81,7 @@ def List_EmptyOp : List_Op<"empty", [Pure]> {
 
 def List_FromElementsOp : List_Op<"from_elements",
     [Pure, List_ItemTypesMatchElementType<"result", "elements">]> {
+  // TODO: Attach ListLengthOpInterface.
   let summary = "list holding the given elements";
   let description = [{
     Creates a list of the operands, in the order in which they are given. The
@@ -171,11 +176,15 @@ def List_LengthOp : List_Op<"length", [Pure]> {
       build($_builder, $_state, $_builder.getI32Type(), input);
     }]>
   ];
+
+  // TODO: Implement this folder using ListLengthOpInterface.
+  let hasFolder = 1;
 }
 
 def List_MapOp : List_Op<"map",
     [RecursiveMemoryEffects,
      SingleBlockImplicitTerminator<"::mlir::list::YieldOp">]> {
+  // TODO: Attach ListLengthOpInterface.
   let summary = "apply a computation to every element of a list";
   let description = [{
     Produces a list of the same length as the operand list, where every element
@@ -297,6 +306,7 @@ def List_PrintOp : List_Op<"print", [MemoryEffects<[MemWrite]>]> {
 def List_PushBackOp : List_Op<"push_back",
     [Pure, AllTypesMatch<["input", "result"]>,
      List_ItemTypeMatchesElementType<"input", "item">]> {
+  // TODO: Attach ListLengthOpInterface.
   let summary = "list with an element appended";
   let description = [{
     Returns the operand list with `$item` appended to it.
@@ -369,6 +379,7 @@ def List_RangeOp : List_Op<"range", [Pure]> {
 
 def List_ReverseOp : List_Op<"reverse",
     [Pure, AllTypesMatch<["input", "result"]>]> {
+  // TODO: Attach ListLengthOpInterface.
   let summary = "list with its elements in reverse order";
   let description = [{
     Returns the elements of the operand list in reverse order.

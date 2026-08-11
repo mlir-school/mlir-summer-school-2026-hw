@@ -15,11 +15,37 @@
 using namespace mlir;
 using namespace mlir::list;
 
+#include "list/IR/ListInterfaces.cpp.inc"
+
 //===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
 OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValueAttr(); }
+
+//===----------------------------------------------------------------------===//
+// EmptyOp
+//===----------------------------------------------------------------------===//
+
+// This is the reference implementation for the exercise. Operations that
+// preserve or change a list's length can query their input's defining
+// operation with getDefiningOp<ListLengthOpInterface>().
+std::optional<int64_t> EmptyOp::getStaticLength() { return 0; }
+
+//===----------------------------------------------------------------------===//
+// LengthOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult LengthOp::fold(FoldAdaptor adaptor) {
+  // TODO: Query the input's defining operation through
+  // ListLengthOpInterface. If it reports a length, return an IntegerAttr of
+  // the result type. A block argument or unknown length must not be folded.
+  return {};
+}
+
+// TODO: Implement getStaticLength() for FromElementsOp, MapOp, PushBackOp and
+// ReverseOp after attaching ListLengthOpInterface to each operation in
+// ListOps.td.
 
 //===----------------------------------------------------------------------===//
 // MapOp

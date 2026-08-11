@@ -14,6 +14,9 @@
 #ifndef MLIR_DIALECT_LIST_IR_LIST_H
 #define MLIR_DIALECT_LIST_IR_LIST_H
 
+#include <cstdint>
+#include <optional>
+
 #include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
@@ -27,6 +30,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "list/IR/ListOpsDialect.h.inc"
+
+//===----------------------------------------------------------------------===//
+// List Dialect Interfaces
+//===----------------------------------------------------------------------===//
+
+#include "list/IR/ListInterfaces.h.inc"
 
 //===----------------------------------------------------------------------===//
 // List Dialect Types
