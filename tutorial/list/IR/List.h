@@ -22,6 +22,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/DialectRegistry.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
@@ -57,5 +58,12 @@
 
 #define GET_OP_CLASSES
 #include "list/IR/ListOps.h.inc"
+
+namespace mlir::list {
+
+/// Register external interface models used by the list dialect.
+void registerListExternalModels(DialectRegistry &registry);
+
+} // namespace mlir::list
 
 #endif // MLIR_DIALECT_LIST_IR_LIST_H

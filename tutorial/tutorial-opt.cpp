@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
 
   // Register tutorial dialects.
   registry.insert<mlir::list::ListDialect>();
+  mlir::list::registerListExternalModels(registry);
 
   // Register tutorial passes.
   mlir::list::registerListPasses();
