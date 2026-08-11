@@ -39,9 +39,14 @@ registration call are provided. Complete the Exercise 2 TODOs:
    defining operations through `ConstantIntOpInterface`. Return
    `std::nullopt` if either bound is unknown.
 
-The direct, chained, and unknown cases in `test/list/interfaces.mlir` and
-`test/list/external-models.mlir` are the completion criteria:
+## Validation
+
+Run the complete list-dialect test suite:
 
 ```bash
 cmake --build build --target check-tutorial-list
 ```
+
+The exercises are complete when all **11 of 11 tests pass (100%)**. In
+particular, this includes the direct, chained, and unknown cases in
+`test/list/interfaces.mlir` and `test/list/external-models.mlir`.
