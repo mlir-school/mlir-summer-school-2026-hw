@@ -28,4 +28,20 @@ def ListLengthOpInterface : OpInterface<"ListLengthOpInterface"> {
   ];
 }
 
+def ConstantIntOpInterface : OpInterface<"ConstantIntOpInterface"> {
+  let description = [{
+    An interface for operations that may produce a statically known integer.
+  }];
+
+  let cppNamespace = "::mlir::list";
+
+  let methods = [
+    InterfaceMethod<
+      "Return the constant integer value, if one is available",
+      "::std::optional<int64_t>",
+      "getConstantIntValue"
+    >
+  ];
+}
+
 #endif // MLIR_DIALECT_LIST_IR_LISTINTERFACES

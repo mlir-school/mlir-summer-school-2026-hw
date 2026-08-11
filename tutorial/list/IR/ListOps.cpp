@@ -47,6 +47,10 @@ OpFoldResult LengthOp::fold(FoldAdaptor adaptor) {
 // ReverseOp after attaching ListLengthOpInterface to each operation in
 // ListOps.td.
 
+// Exercise 2 TODO: After attaching ListLengthOpInterface to RangeOp, implement
+// RangeOp::getStaticLength(). Query both bounds through ConstantIntOpInterface.
+// A list.range is half-open and has length max(upper - lower, 0).
+
 //===----------------------------------------------------------------------===//
 // MapOp
 //===----------------------------------------------------------------------===//

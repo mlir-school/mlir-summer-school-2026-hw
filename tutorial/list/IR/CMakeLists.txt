@@ -21,6 +21,7 @@ add_public_tablegen_target(MLIRListOpsIncGen)
 
 add_mlir_library(ListDialect
   ListDialect.cpp
+  ListExternalModels.cpp
   ListOps.cpp
 
   DEPENDS
