@@ -63,9 +63,23 @@ static std::optional<int64_t> inferStaticListLength(Value list) {
   return producer.getStaticLength();
 }
 
-// Exercise 2 TODO: After attaching ListLengthOpInterface to RangeOp, implement
-// RangeOp::getStaticLength(). Query both bounds through ConstantIntOpInterface.
-// A list.range is half-open and has length max(upper - lower, 0).
+//===----------------------------------------------------------------------===//
+// RangeOp
+//===----------------------------------------------------------------------===//
+
+std::optional<int64_t> RangeOp::getStaticLength() {
+  auto lower = getLower().getDefiningOp<ConstantIntOpInterface>();
+  auto upper = getUpper().getDefiningOp<ConstantIntOpInterface>();
+  if (!lower || !upper)
+    return std::nullopt;
+
+  std::optional<int64_t> lowerValue = lower.getConstantIntValue();
+  std::optional<int64_t> upperValue = upper.getConstantIntValue();
+  if (!lowerValue || !upperValue)
+    return std::nullopt;
+
+  return *upperValue > *lowerValue ? *upperValue - *lowerValue : 0;
+}
 
 //===----------------------------------------------------------------------===//
 // MapOp

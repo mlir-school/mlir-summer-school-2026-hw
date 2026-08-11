@@ -22,9 +22,11 @@ struct ArithConstantIntModel
                                             arith::ConstantOp> {
   std::optional<int64_t>
   getConstantIntValue(Operation *operation) const {
-    // TODO: Cast operation to arith::ConstantOp and return its IntegerAttr
-    // value. arith.constant can also hold non-integer attributes.
-    return std::nullopt;
+    auto constant = cast<arith::ConstantOp>(operation);
+    auto value = dyn_cast<IntegerAttr>(constant.getValue());
+    if (!value)
+      return std::nullopt;
+    return value.getInt();
   }
 };
 
@@ -32,6 +34,6 @@ struct ArithConstantIntModel
 
 void mlir::list::registerListExternalModels(DialectRegistry &registry) {
   registry.addExtension(+[](MLIRContext *context, arith::ArithDialect *) {
-    // TODO: Attach ArithConstantIntModel to arith::ConstantOp.
+    arith::ConstantOp::attachInterface<ArithConstantIntModel>(*context);
   });
 }
