@@ -349,7 +349,11 @@ SmallVector<MemorySlot> AllocaOp::getPromotableSlots() {
 }
 
 Value AllocaOp::getDefaultValue(const MemorySlot &slot, OpBuilder &builder) {
-  assert(0 && "unimplemented");
+  if (isa<IntegerType>(slot.elemType)) {
+    auto zero = builder.getIntegerAttr(slot.elemType, 0);
+    return arith::ConstantOp::create(builder, getLoc(), zero);
+  }
+  return EmptyOp::create(builder, getLoc(), slot.elemType);
 }
 
 void AllocaOp::handleBlockArgument(const MemorySlot &, BlockArgument,
