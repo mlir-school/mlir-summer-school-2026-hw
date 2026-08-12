@@ -367,7 +367,7 @@ Value MapOp::finalizePromotion(const MemorySlot &, Value entryReachingDef,
 //===----------------------------------------------------------------------===//
 
 SmallVector<MemorySlot> AllocaOp::getPromotableSlots() {
-  return {{getRef(), cast<RefType>(getRef().getType()).getElementType()}};
+  return {MemorySlot{getRef(), getRef().getType().getElementType()}};
 }
 
 Value AllocaOp::getDefaultValue(const MemorySlot &slot, OpBuilder &builder) {
