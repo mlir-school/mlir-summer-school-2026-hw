@@ -28,6 +28,7 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValueAttr(); }
 void FromElementsOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
                                        SetIntRangeFn setResultRanges) {
   // Get the bitwidth of the list element type.
+  // This is important to set the correct range for some lists.
   unsigned elementWidth = ConstantIntRanges::getStorageBitwidth(
       getResult().getType().getElementType());
 
@@ -47,17 +48,31 @@ void FromElementsOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
 
 void PeekFrontOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
                                     SetIntRangeFn setResultRanges) {
-  setResultRanges(getItem(), argRanges[0]);
+  // EXERCISE 1: Change this line
+  ConstantIntRanges range = ConstantIntRanges::maxRange(
+      ConstantIntRanges::getStorageBitwidth(getResult().getType()));
+
+  setResultRanges(getItem(), range);
 }
 
 void PopFrontOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
                                    SetIntRangeFn setResultRanges) {
-  setResultRanges(getResult(), argRanges[0]);
+  // EXERCISE 1: Change this line
+  ConstantIntRanges range = ConstantIntRanges::maxRange(
+      ConstantIntRanges::getStorageBitwidth(
+          getResult().getType().getElementType()));
+
+  setResultRanges(getResult(), range);
 }
 
 void PushFrontOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
                                     SetIntRangeFn setResultRanges) {
-  setResultRanges(getResult(), argRanges[0].rangeUnion(argRanges[1]));
+  // EXERCISE 1: Change this line
+  ConstantIntRanges range = ConstantIntRanges::maxRange(
+      ConstantIntRanges::getStorageBitwidth(
+          getResult().getType().getElementType()));
+
+  setResultRanges(getResult(), range);
 }
 
 //===----------------------------------------------------------------------===//
@@ -66,10 +81,11 @@ void PushFrontOp::inferResultRanges(ArrayRef<ConstantIntRanges> argRanges,
 
 void LengthOp::inferResultRanges(ArrayRef<ConstantIntRanges>,
                                  SetIntRangeFn setResultRanges) {
-  unsigned width = ConstantIntRanges::getStorageBitwidth(getType());
-  setResultRanges(getResult(),
-                  ConstantIntRanges::fromSigned(
-                      APInt::getZero(width), APInt::getSignedMaxValue(width)));
+  // EXERCISE 1: Change this line
+  ConstantIntRanges range = ConstantIntRanges::maxRange(
+      ConstantIntRanges::getStorageBitwidth(getResult().getType()));
+
+  setResultRanges(getResult(), range);
 }
 
 //===----------------------------------------------------------------------===//
