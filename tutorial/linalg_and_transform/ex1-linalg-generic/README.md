@@ -32,12 +32,3 @@ whether you got it right.
   sitting in the same file. MLIR gives structurally identical affine maps the
   same `#map` alias, so if your maps match the reference exactly, both functions
   print the same aliases. The CHECK lines compare them.
-
-## Where people get stuck
-
-- The trailing `-> tensor<...>` after the region is easy to forget.
-- Output operands appear in `indexing_maps` too, after all the inputs.
-- The block has one argument per operand, outputs included; the output argument
-  is the current accumulator value.
-- In `02`, if you try to do it in one operation, the add lands inside the
-  reduction and runs `K` times. The note at the bottom of that file explains it.

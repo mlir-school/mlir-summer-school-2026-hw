@@ -31,12 +31,3 @@ maps said: map dimension *n* becomes induction variable *n*.
 
 If you want the plainer version without the parallel/reduction distinction, swap
 in `--convert-linalg-to-affine-loops`.
-
-## Where people get stuck
-
-- Loads appear in operand order: inputs first, then the output being read for
-  accumulation.
-- In `02`, `B` is indexed `[n, k]`, not `[k, n]`. That is the transposed weight
-  layout a fully connected layer uses, and it is the whole point of that file.
-- In `03`, the operands of `arith.addf` follow the block argument order, not the
-  order they appear in the source.

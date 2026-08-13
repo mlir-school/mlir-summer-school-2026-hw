@@ -29,19 +29,6 @@ current tile, and a `[4, 4]` nest around the add. The CHECK lines pin the tile
 sizes, so the test verifies the schedule rather than merely that some loops
 appeared.
 
-## Where people get stuck
-
-- **Handle invalidation.** `tile_using_for` *consumes* the handle you give it.
-  After step 3 the handle from step 1 is dead; step 6 has to start from the
-  handle step 3 returned. Add `--transform-dialect-check-uses` to the RUN line
-  to have this diagnosed properly instead of as a confusing downstream error.
-- **Result arity.** `tile_using_for` with two tile sizes returns three values:
-  the tiled op and two loops. Getting the `-> (...)` type list wrong is the most
-  common parse error here.
-- **Noise.** Without `--canonicalize --cse` the output is roughly sixty lines of
-  `affine.apply` and duplicate `tensor.dim`. They are already in the RUN line;
-  drop them once to see why.
-
 ## Going further
 
 Lower the scheduled payload and check that your mental model still holds:
