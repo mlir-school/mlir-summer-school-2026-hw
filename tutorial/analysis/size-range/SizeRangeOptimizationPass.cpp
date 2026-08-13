@@ -43,6 +43,7 @@ public:
     // Get the size range of the result.
     const SizeRangeValue *range = getSizeRange(solver, result);
     
+    // EXERCISE: complete here
     // range->getLower() to get the lower bound of the size range
     // range->getUpper() to get the upper bound of the size range
     
@@ -50,12 +51,6 @@ public:
     // auto empty = list::EmptyOp::create(rewriter, result.getLoc(), result.getType());
     // rewriter.replaceAllUsesWith(result, empty.getResult());
 
-    if (!range || !range->isExact(0))
-      return failure();
-
-    auto empty =
-        list::EmptyOp::create(rewriter, result.getLoc(), result.getType());
-    rewriter.replaceAllUsesWith(result, empty.getResult());
     return success();
   }
 

@@ -28,36 +28,10 @@ uint64_t SizeRangeValue::getExactValue() const {
   return lower;
 }
 
-SizeRangeValue SizeRangeValue::add(const SizeRangeValue &lhs,
-                                   const SizeRangeValue &rhs) {
-  if (lhs.isUninitialized() || rhs.isUninitialized())
-    return getUninitialized();
-
-  // Saturating the lower bound remains conservative: the saturated value is
-  // still no greater than the true mathematical result.
-  uint64_t lower = llvm::SaturatingAdd(lhs.lower, rhs.lower);
-  std::optional<uint64_t> upper;
-  if (lhs.upper && rhs.upper) {
-    bool overflowed = false;
-    uint64_t sum = llvm::SaturatingAdd(*lhs.upper, *rhs.upper, &overflowed);
-    if (!overflowed)
-      upper = sum;
-  }
-  return getRange(lower, upper);
-}
-
 SizeRangeValue SizeRangeValue::join(const SizeRangeValue &lhs,
                                     const SizeRangeValue &rhs) {
-  if (lhs.isUninitialized())
-    return rhs;
-  if (rhs.isUninitialized())
-    return lhs;
-
-  uint64_t lower = std::min(lhs.lower, rhs.lower);
-  std::optional<uint64_t> upper;
-  if (lhs.upper && rhs.upper)
-    upper = std::max(*lhs.upper, *rhs.upper);
-  return getRange(lower, upper);
+  // EXERCISE: complete here
+  return SizeRangeValue::getUnknown();
 }
 
 void SizeRangeValue::print(llvm::raw_ostream &os) const {
@@ -102,7 +76,7 @@ void SizeRangeAnalysis::set(SizeRangeLattice *lattice,
 }
 
 void SizeRangeAnalysis::setToEntryState(SizeRangeLattice *lattice) {
-  set(lattice, SizeRangeValue::getUnknown());
+  // EXERCISE: complete here
 }
 
 LogicalResult
@@ -114,38 +88,21 @@ SizeRangeAnalysis::visitOperation(Operation *op,
     return success();
   }
 
-  if (isa<list::PushBackOp, list::PushFrontOp>(op)) {
-    set(results.front(), SizeRangeValue::add(operands.front()->getValue(),
-                                             SizeRangeValue::getExact(1)));
-    return success();
+  if (isa<list::PushBackOp>(op)) {
+    // EXERCISE: complete here
   }
 
-  if (isa<list::ConcatOp>(op)) {
-    set(results.front(),
-        SizeRangeValue::add(operands[0]->getValue(), operands[1]->getValue()));
-    return success();
+  if (isa<list::PushFrontOp>(op)) {
+    // EXERCISE: complete here
   }
 
   if (isa<list::PopFrontOp>(op)) {
-    const SizeRangeValue &input = operands.front()->getValue();
-    if (input.isUninitialized()) {
-      set(results.front(), SizeRangeValue::getUninitialized());
-      return success();
-    }
-
-    uint64_t lower = input.getLower() == 0 ? 0 : input.getLower() - 1;
-    std::optional<uint64_t> upper = input.getUpper();
-    if (upper)
-      *upper = *upper == 0 ? 0 : *upper - 1;
-    set(results.front(), SizeRangeValue::getRange(lower, upper));
-    return success();
+    // EXERCISE: complete here
   }
 
-  if (isa<list::LengthOp>(op)) {
-    // The length result has exactly the same numeric range as the size of the
-    // input list. Modeling it makes the range directly available to rewrites.
-    set(results.front(), operands.front()->getValue());
-    return success();
+  if (isa<list::ConcatOp>(op)) {
+    // EXERCISE: complete here.
+    // This exercise is a bit harder than the others.
   }
 
   // Unknown producers, including region arguments, may hold a list of any

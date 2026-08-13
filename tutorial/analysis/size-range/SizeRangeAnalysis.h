@@ -34,10 +34,6 @@ public:
   std::optional<uint64_t> getUpper() const { return upper; }
   uint64_t getExactValue() const;
 
-  /// Return the range obtained by adding the sizes represented by two ranges.
-  static SizeRangeValue add(const SizeRangeValue &lhs,
-                            const SizeRangeValue &rhs);
-
   /// Join two control-flow paths by taking their interval hull.
   static SizeRangeValue join(const SizeRangeValue &lhs,
                              const SizeRangeValue &rhs);
@@ -73,8 +69,7 @@ private:
 };
 
 /// A sparse forward analysis for list sizes. List-producing operations carry
-/// the possible size of their result, while list.length carries the possible
-/// integer values of its result.
+/// the possible size of their result.
 class SizeRangeAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<SizeRangeLattice> {
 public:
