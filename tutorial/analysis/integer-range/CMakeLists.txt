@@ -5,6 +5,7 @@
 add_mlir_library(ListIntegerRangeAnalysis
   IntegerRangeAnalysisPass.cpp
   IntegerRangeOptimizationPass.cpp
+  ListIntegerRangeAnalysis.cpp
 
   LINK_LIBS PUBLIC
   MLIRAnalysis
@@ -13,6 +14,7 @@ add_mlir_library(ListIntegerRangeAnalysis
   MLIRPass
   MLIRTransforms
   ListDialect
+  ListSizeRangeAnalysis
 )
 
 target_include_directories(ListIntegerRangeAnalysis PUBLIC

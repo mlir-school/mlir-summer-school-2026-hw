@@ -14,8 +14,7 @@ func.func @exact_ranges(%value: i32) -> i32 {
   // CHECK: list.concat {{.*}} {list.size_range = "[3, 3]"}
   %three = list.concat %one, %two : !list.list<i32>
 
-  // list.length propagates the input's size interval to its i32 result.
-  // CHECK: list.length {{.*}} {list.size_range = "[3, 3]"}
+  // CHECK: list.length %{{[^ ]+}} :
   %length = list.length %three : !list.list<i32> -> i32
   return %length : i32
 }
@@ -28,7 +27,7 @@ func.func @pop_front_range(%value: i32) -> i32 {
   %one = list.push_back %empty, %value : !list.list<i32>
   // CHECK: list.pop_front {{.*}} {list.size_range = "[0, 0]"}
   %popped = list.pop_front %one : !list.list<i32>
-  // CHECK: list.length {{.*}} {list.size_range = "[0, 0]"}
+  // CHECK: list.length %{{[^ ]+}} :
   %length = list.length %popped : !list.list<i32> -> i32
   return %length : i32
 }
@@ -44,7 +43,7 @@ func.func @unbounded_ranges(%input: !list.list<i32>, %value: i32) -> i32 {
   // CHECK: list.concat {{.*}} {list.size_range = "[2, +inf]"}
   %two_or_more = list.concat %one_or_more, %one_or_more : !list.list<i32>
 
-  // CHECK: list.length {{.*}} {list.size_range = "[2, +inf]"}
+  // CHECK: list.length %{{[^ ]+}} :
   %length = list.length %two_or_more : !list.list<i32> -> i32
   return %length : i32
 }
@@ -63,7 +62,7 @@ func.func @control_flow_join(%condition: i1, %value: i32) -> i32 {
   }
   // CHECK: {list.size_range = "[0, 1]"}
 
-  // CHECK: list.length {{.*}} {list.size_range = "[0, 1]"}
+  // CHECK: list.length %{{[^ ]+}} :
   %length = list.length %result : !list.list<i32> -> i32
   return %length : i32
 }
@@ -84,7 +83,7 @@ func.func @loop_widening(%upper: index, %value: i32) -> i32 {
   // bound while preserving the lower bound from the zero-iteration path.
   // CHECK: {list.size_range = "[0, +inf]"}
 
-  // CHECK: list.length {{.*}} {list.size_range = "[0, +inf]"}
+  // CHECK: list.length %{{[^ ]+}} :
   %length = list.length %result : !list.list<i32> -> i32
   return %length : i32
 }

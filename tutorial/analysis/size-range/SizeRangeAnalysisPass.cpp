@@ -45,8 +45,7 @@ public:
         return;
 
       Value result = op->getResult(0);
-      bool isList = isa<list::ListType>(result.getType());
-      if (!isList && !isa<list::LengthOp>(op))
+      if (!isa<list::ListType>(result.getType()))
         return;
 
       const auto *lattice = solver.lookupState<SizeRangeLattice>(result);

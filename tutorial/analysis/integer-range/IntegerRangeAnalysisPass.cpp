@@ -2,8 +2,9 @@
 
 #include "analysis/integer-range/IntegerRangeAnalysisPass.h"
 
+#include "analysis/integer-range/ListIntegerRangeAnalysis.h"
+#include "analysis/size-range/SizeRangeAnalysis.h"
 #include "list/IR/List.h"
-#include "mlir/Analysis/DataFlow/IntegerRangeAnalysis.h"
 #include "mlir/Analysis/DataFlow/Utils.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Operation.h"
@@ -33,7 +34,8 @@ public:
   void runOnOperation() override {
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
-    solver.load<dataflow::IntegerRangeAnalysis>();
+    solver.load<SizeRangeAnalysis>();
+    solver.load<ListIntegerRangeAnalysis>();
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitError("failed to run integer range analysis");

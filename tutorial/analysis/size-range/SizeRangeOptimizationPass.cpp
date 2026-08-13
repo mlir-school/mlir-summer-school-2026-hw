@@ -31,14 +31,25 @@ public:
 
   LogicalResult matchAndRewrite(Operation *op,
                                 PatternRewriter &rewriter) const override {
+    // Do not attempt to rewrite a `list.empty` operation or an operation without results.
     if (isa<list::EmptyOp>(op) || op->getNumResults() != 1)
       return failure();
 
+    // Only consider operations that have a list result that is used.
     Value result = op->getResult(0);
     if (!isa<list::ListType>(result.getType()) || result.use_empty())
       return failure();
-
+    
+    // Get the size range of the result.
     const SizeRangeValue *range = getSizeRange(solver, result);
+    
+    // range->getLower() to get the lower bound of the size range
+    // range->getUpper() to get the upper bound of the size range
+    
+    // To create a new operation and replace the original operation:
+    // auto empty = list::EmptyOp::create(rewriter, result.getLoc(), result.getType());
+    // rewriter.replaceAllUsesWith(result, empty.getResult());
+
     if (!range || !range->isExact(0))
       return failure();
 

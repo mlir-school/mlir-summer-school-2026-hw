@@ -8,6 +8,8 @@
 
 #include "analysis/integer-range/IntegerRangeOptimizationPass.h"
 
+#include "analysis/integer-range/ListIntegerRangeAnalysis.h"
+#include "analysis/size-range/SizeRangeAnalysis.h"
 #include "mlir/Analysis/DataFlow/IntegerRangeAnalysis.h"
 #include "mlir/Analysis/DataFlow/Utils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -80,7 +82,8 @@ public:
   void runOnOperation() override {
     DataFlowSolver solver;
     dataflow::loadBaselineAnalyses(solver);
-    solver.load<dataflow::IntegerRangeAnalysis>();
+    solver.load<SizeRangeAnalysis>();
+    solver.load<ListIntegerRangeAnalysis>();
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitError("failed to run integer range analysis");

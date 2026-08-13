@@ -114,7 +114,7 @@ SizeRangeAnalysis::visitOperation(Operation *op,
     return success();
   }
 
-  if (isa<list::PushBackOp>(op)) {
+  if (isa<list::PushBackOp, list::PushFrontOp>(op)) {
     set(results.front(), SizeRangeValue::add(operands.front()->getValue(),
                                              SizeRangeValue::getExact(1)));
     return success();
